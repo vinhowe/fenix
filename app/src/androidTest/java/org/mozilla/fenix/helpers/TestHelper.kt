@@ -46,4 +46,11 @@ object TestHelper {
         editor.putInt(pref, value)
         editor.apply()
     }
+
+    fun restartApp(activity: HomeActivityTestRule) {
+        with(activity) {
+            finishActivity()
+            launchActivity(null)
+        }
+    }
 }
