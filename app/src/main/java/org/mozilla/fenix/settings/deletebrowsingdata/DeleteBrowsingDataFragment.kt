@@ -153,7 +153,7 @@ class DeleteBrowsingDataFragment : Fragment(R.layout.fragment_delete_browsing_da
         if (popAfter) viewLifecycleOwner.lifecycleScope.launch(
             Dispatchers.Main
         ) {
-            //findNavController().popBackStack(R.id.homeFragment, false)
+            // findNavController().popBackStack(R.id.homeFragment, false)
             returnToDeletionOrigin()
         }
     }
@@ -242,7 +242,7 @@ class DeleteBrowsingDataFragment : Fragment(R.layout.fragment_delete_browsing_da
     }
 
     private fun returnToDeletionOrigin() {
-        when(findNavController().getBackStackEntry(-1).destination.id ) {
+        when (findNavController().getBackStackEntry(-1).destination.id) {
             R.id.settingsFragment -> findNavController().popBackStack(R.id.settingsFragment, false)
             else -> {
                 findNavController().popBackStack(R.id.homeFragment, false)
