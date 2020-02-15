@@ -280,21 +280,21 @@ class HomeFragment : Fragment() {
             nav(R.id.homeFragment, directions)
         }
 
-        PrivateBrowsingButtonView(
-            privateBrowsingButton,
-            browsingModeManager
-        ) { newMode ->
-            invokePendingDeleteJobs()
-
-            if (newMode == BrowsingMode.Private) {
-                requireContext().settings().incrementNumTimesPrivateModeOpened()
-            }
-
-            if (onboarding.userHasBeenOnboarded()) {
-                homeFragmentStore.dispatch(
-                    HomeFragmentAction.ModeChange(Mode.fromBrowsingMode(newMode)))
-            }
-        }
+//        PrivateBrowsingButtonView(
+//            privateBrowsingButton,
+//            browsingModeManager
+//        ) { newMode ->
+//            invokePendingDeleteJobs()
+//
+//            if (newMode == BrowsingMode.Private) {
+//                requireContext().settings().incrementNumTimesPrivateModeOpened()
+//            }
+//
+//            if (onboarding.userHasBeenOnboarded()) {
+//                homeFragmentStore.dispatch(
+//                    HomeFragmentAction.ModeChange(Mode.fromBrowsingMode(newMode)))
+//            }
+//        }
 
         // We need the shadow to be above the components.
         bottomBarShadow.bringToFront()
@@ -466,12 +466,12 @@ class HomeFragment : Fragment() {
                     privateBrowsingRecommend.dismiss()
                 }
             }
-            // We want to show the popup only after privateBrowsingButton is available.
-            // Otherwise, we will encounter an activity token error.
-            privateBrowsingButton.post {
-                privateBrowsingRecommend.showAsDropDown(
-                    privateBrowsingButton, 0, CFR_Y_OFFSET, Gravity.TOP or Gravity.END)
-            }
+//            // We want to show the popup only after privateBrowsingButton is available.
+//            // Otherwise, we will encounter an activity token error.
+//            privateBrowsingButton.post {
+//                privateBrowsingRecommend.showAsDropDown(
+//                    privateBrowsingButton, 0, CFR_Y_OFFSET, Gravity.TOP or Gravity.END)
+//            }
         }
     }
 

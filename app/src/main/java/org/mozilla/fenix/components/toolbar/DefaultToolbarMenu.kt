@@ -157,7 +157,7 @@ class DefaultToolbarMenu(
             desktopMode,
             addToHomescreen.apply { visible = ::shouldShowAddToHomescreen },
             findInPage,
-            privateTab,
+//            privateTab,
             newTab,
             reportIssue,
             if (shouldShowSaveToCollection) saveToCollection else null,
