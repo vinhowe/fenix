@@ -27,31 +27,6 @@ import org.mozilla.fenix.Config
 import org.mozilla.fenix.FeatureFlags
 import org.mozilla.fenix.HomeActivity
 import org.mozilla.fenix.R
-import org.mozilla.fenix.R.string.pref_key_about
-import org.mozilla.fenix.R.string.pref_key_accessibility
-import org.mozilla.fenix.R.string.pref_key_account
-import org.mozilla.fenix.R.string.pref_key_account_auth_error
-import org.mozilla.fenix.R.string.pref_key_account_category
-import org.mozilla.fenix.R.string.pref_key_add_private_browsing_shortcut
-import org.mozilla.fenix.R.string.pref_key_data_choices
-import org.mozilla.fenix.R.string.pref_key_delete_browsing_data
-import org.mozilla.fenix.R.string.pref_key_delete_browsing_data_on_quit_preference
-import org.mozilla.fenix.R.string.pref_key_help
-import org.mozilla.fenix.R.string.pref_key_language
-import org.mozilla.fenix.R.string.pref_key_leakcanary
-import org.mozilla.fenix.R.string.pref_key_make_default_browser
-import org.mozilla.fenix.R.string.pref_key_passwords
-import org.mozilla.fenix.R.string.pref_key_privacy_link
-import org.mozilla.fenix.R.string.pref_key_rate
-import org.mozilla.fenix.R.string.pref_key_remote_debugging
-import org.mozilla.fenix.R.string.pref_key_search_settings
-import org.mozilla.fenix.R.string.pref_key_sign_in
-import org.mozilla.fenix.R.string.pref_key_site_permissions
-import org.mozilla.fenix.R.string.pref_key_theme
-import org.mozilla.fenix.R.string.pref_key_toolbar
-import org.mozilla.fenix.R.string.pref_key_tracking_protection_settings
-import org.mozilla.fenix.R.string.pref_key_your_rights
-import org.mozilla.fenix.components.PrivateShortcutCreateManager
 import org.mozilla.fenix.components.metrics.Event
 import org.mozilla.fenix.ext.application
 import org.mozilla.fenix.ext.components
@@ -62,7 +37,6 @@ import org.mozilla.fenix.ext.settings
 import org.mozilla.fenix.ext.showToolbar
 import org.mozilla.fenix.settings.account.AccountAuthErrorPreference
 import org.mozilla.fenix.settings.account.AccountPreference
-import org.mozilla.fenix.utils.ItsNotBrokenSnack
 
 @Suppress("LargeClass")
 class SettingsFragment : PreferenceFragmentCompat() {
@@ -73,7 +47,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
             lifecycleScope.launch {
                 updateAccountUIState(
                     context = context,
-                    profile = profile ?: context.components.backgroundServices.accountManager.accountProfile()
+                    profile = profile
+                        ?: context.components.backgroundServices.accountManager.accountProfile()
                 )
             }
         }
@@ -108,7 +83,11 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 try {
                     context?.let { context ->
                         context.components.analytics.metrics.track(
-                            Event.PreferenceToggled(key, sharedPreferences.getBoolean(key, false), context)
+                            Event.PreferenceToggled(
+                                key,
+                                sharedPreferences.getBoolean(key, false),
+                                context
+                            )
                         )
                     }
                 } catch (e: IllegalArgumentException) {
@@ -134,7 +113,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     private fun update() {
         val trackingProtectionPreference =
-            findPreference<Preference>(getPreferenceKey(pref_key_tracking_protection_settings))
+            findPreference<Preference>(getPreferenceKey(R.string.pref_key_tracking_protection_settings))
         trackingProtectionPreference?.summary = context?.let {
             if (it.settings().shouldUseTrackingProtection) {
                 getString(R.string.tracking_protection_on)
@@ -144,21 +123,17 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
 
         val toolbarPreference =
-            findPreference<Preference>(getPreferenceKey(pref_key_toolbar))
+            findPreference<Preference>(getPreferenceKey(R.string.pref_key_toolbar))
         toolbarPreference?.summary = context?.settings()?.toolbarSettingString
 
-        val themesPreference =
-            findPreference<Preference>(getPreferenceKey(pref_key_theme))
-        themesPreference?.summary = context?.settings()?.themeSettingString
-
-        val aboutPreference = findPreference<Preference>(getPreferenceKey(pref_key_about))
+        val aboutPreference = findPreference<Preference>(getPreferenceKey(R.string.pref_key_about))
         val appName = getString(R.string.app_name)
         aboutPreference?.title = getString(R.string.preferences_about, appName)
 
         val deleteBrowsingDataPreference =
             findPreference<Preference>(
                 getPreferenceKey(
-                    pref_key_delete_browsing_data_on_quit_preference
+                    R.string.pref_key_delete_browsing_data_on_quit_preference
                 )
             )
         deleteBrowsingDataPreference?.summary = context?.let {
@@ -167,11 +142,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
             } else {
                 getString(R.string.delete_browsing_data_quit_off)
             }
-        }
-
-        findPreference<Preference>(getPreferenceKey(pref_key_add_private_browsing_shortcut))?.apply {
-            isVisible =
-                !PrivateShortcutCreateManager.doesPrivateBrowsingPinnedShortcutExist(context)
         }
 
         setupPreferences()
@@ -183,44 +153,46 @@ class SettingsFragment : PreferenceFragmentCompat() {
     }
 
     private fun updatePreferenceVisibilityForFeatureFlags() {
-        findPreference<Preference>(getPreferenceKey(pref_key_passwords))?.apply {
+        findPreference<Preference>(getPreferenceKey(R.string.pref_key_passwords))?.apply {
             isVisible = FeatureFlags.logins
+        }
+        findPreference<Preference>(getPreferenceKey(R.string.pref_key_language))?.apply {
+            isVisible = FeatureFlags.fenixLanguagePicker
         }
     }
 
     @Suppress("ComplexMethod", "LongMethod")
     override fun onPreferenceTreeClick(preference: Preference): Boolean {
         val directions: NavDirections? = when (preference.key) {
-            resources.getString(pref_key_search_settings) -> {
+            resources.getString(R.string.pref_key_search_settings) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToSearchEngineFragment()
             }
-            resources.getString(pref_key_tracking_protection_settings) -> {
+            resources.getString(R.string.pref_key_tracking_protection_settings) -> {
                 requireContext().metrics.track(Event.TrackingProtectionSettings)
                 SettingsFragmentDirections.actionSettingsFragmentToTrackingProtectionFragment()
             }
-            resources.getString(pref_key_site_permissions) -> {
+            resources.getString(R.string.pref_key_site_permissions) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToSitePermissionsFragment()
             }
-            resources.getString(pref_key_add_private_browsing_shortcut) -> {
-                requireContext().metrics.track(Event.PrivateBrowsingCreateShortcut)
-                PrivateShortcutCreateManager.createPrivateShortcut(requireContext())
-                null
+            resources.getString(R.string.pref_key_private_browsing) -> {
+                SettingsFragmentDirections.actionSettingsFragmentToPrivateBrowsingFragment()
             }
-            resources.getString(pref_key_accessibility) -> {
+            resources.getString(R.string.pref_key_accessibility) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToAccessibilityFragment()
             }
-            resources.getString(pref_key_language) -> {
-                // TODO #220
-                ItsNotBrokenSnack(requireContext()).showSnackbar(issueNumber = "220")
-                null
+            resources.getString(R.string.pref_key_language) -> {
+                SettingsFragmentDirections.actionSettingsFragmentToLocaleSettingsFragment()
             }
-            resources.getString(pref_key_make_default_browser) -> {
+            resources.getString(R.string.pref_key_addons) -> {
+                SettingsFragmentDirections.actionSettingsFragmentToAddonsFragment()
+            }
+            resources.getString(R.string.pref_key_make_default_browser) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToDefaultBrowserSettingsFragment()
             }
-            resources.getString(pref_key_data_choices) -> {
+            resources.getString(R.string.pref_key_data_choices) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToDataChoicesFragment()
             }
-            resources.getString(pref_key_help) -> {
+            resources.getString(R.string.pref_key_help) -> {
                 (activity as HomeActivity).openToBrowserAndLoad(
                     searchTermOrURL = SupportUtils.getSumoURLForTopic(
                         context!!,
@@ -231,7 +203,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 )
                 null
             }
-            resources.getString(pref_key_rate) -> {
+            resources.getString(R.string.pref_key_rate) -> {
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SupportUtils.RATE_APP_URL)))
                 } catch (e: ActivityNotFoundException) {
@@ -245,31 +217,28 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 }
                 null
             }
-            resources.getString(pref_key_passwords) -> {
+            resources.getString(R.string.pref_key_passwords) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToLoginsFragment()
             }
-            resources.getString(pref_key_about) -> {
+            resources.getString(R.string.pref_key_about) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToAboutFragment()
             }
-            resources.getString(pref_key_account) -> {
+            resources.getString(R.string.pref_key_account) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToAccountSettingsFragment()
             }
-            resources.getString(pref_key_account_auth_error) -> {
+            resources.getString(R.string.pref_key_account_auth_error) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToAccountProblemFragment()
             }
-            resources.getString(pref_key_delete_browsing_data) -> {
+            resources.getString(R.string.pref_key_delete_browsing_data) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToDeleteBrowsingDataFragment()
             }
-            resources.getString(pref_key_delete_browsing_data_on_quit_preference) -> {
+            resources.getString(R.string.pref_key_delete_browsing_data_on_quit_preference) -> {
                 SettingsFragmentDirections.actionSettingsFragmentToDeleteBrowsingDataOnQuitFragment()
             }
-            resources.getString(pref_key_theme) -> {
-                SettingsFragmentDirections.actionSettingsFragmentToThemeFragment()
+            resources.getString(R.string.pref_key_customize) -> {
+                SettingsFragmentDirections.actionSettingsFragmentToCustomizationFragment()
             }
-            resources.getString(pref_key_toolbar) -> {
-                SettingsFragmentDirections.actionSettingsFragmentToToolbarSettingsFragment()
-            }
-            resources.getString(pref_key_privacy_link) -> {
+            resources.getString(R.string.pref_key_privacy_link) -> {
                 val intent = SupportUtils.createCustomTabIntent(
                     requireContext(),
                     SupportUtils.getPrivacyNoticeUrl()
@@ -277,7 +246,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 startActivity(intent)
                 null
             }
-            resources.getString(pref_key_your_rights) -> {
+            resources.getString(R.string.pref_key_your_rights) -> {
                 val context = requireContext()
                 val intent = SupportUtils.createCustomTabIntent(
                     context,
@@ -300,8 +269,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
     }
 
     private fun setupPreferences() {
-        val leakKey = getPreferenceKey(pref_key_leakcanary)
-        val debuggingKey = getPreferenceKey(pref_key_remote_debugging)
+        val leakKey = getPreferenceKey(R.string.pref_key_leakcanary)
+        val debuggingKey = getPreferenceKey(R.string.pref_key_remote_debugging)
 
         val preferenceLeakCanary = findPreference<Preference>(leakKey)
         val preferenceRemoteDebugging = findPreference<Preference>(debuggingKey)
@@ -336,17 +305,17 @@ class SettingsFragment : PreferenceFragmentCompat() {
      */
     private fun updateAccountUIState(context: Context, profile: Profile?) {
         val preferenceSignIn =
-            findPreference<Preference>(context.getPreferenceKey(pref_key_sign_in))
+            findPreference<Preference>(context.getPreferenceKey(R.string.pref_key_sign_in))
         val preferenceFirefoxAccount =
-            findPreference<AccountPreference>(context.getPreferenceKey(pref_key_account))
+            findPreference<AccountPreference>(context.getPreferenceKey(R.string.pref_key_account))
         val preferenceFirefoxAccountAuthError =
             findPreference<AccountAuthErrorPreference>(
                 context.getPreferenceKey(
-                    pref_key_account_auth_error
+                    R.string.pref_key_account_auth_error
                 )
             )
         val accountPreferenceCategory =
-            findPreference<PreferenceCategory>(context.getPreferenceKey(pref_key_account_category))
+            findPreference<PreferenceCategory>(context.getPreferenceKey(R.string.pref_key_account_category))
 
         val accountManager = requireComponents.backgroundServices.accountManager
         val account = accountManager.authenticatedAccount()

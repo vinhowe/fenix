@@ -6,6 +6,7 @@ package org.mozilla.fenix.components
 
 import android.content.Context
 import androidx.navigation.NavController
+import androidx.preference.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -13,14 +14,12 @@ import mozilla.components.feature.accounts.FirefoxAccountsAuthFeature
 import mozilla.components.feature.app.links.AppLinksInterceptor
 import mozilla.components.service.fxa.manager.FxaAccountManager
 import mozilla.components.support.ktx.android.content.hasCamera
-import org.mozilla.fenix.Experiments
+import org.mozilla.fenix.FeatureFlags
 import org.mozilla.fenix.NavGraphDirections
 import org.mozilla.fenix.R
 import org.mozilla.fenix.components.metrics.Event
 import org.mozilla.fenix.ext.components
 import org.mozilla.fenix.ext.getPreferenceKey
-import org.mozilla.fenix.ext.settings
-import org.mozilla.fenix.isInExperiment
 import org.mozilla.fenix.settings.SupportUtils
 import org.mozilla.fenix.test.Mockable
 
@@ -52,7 +51,7 @@ class Services(
             context,
             interceptLinkClicks = true,
             launchInApp = {
-                context.settings().preferences.getBoolean(
+                PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
                     context.getPreferenceKey(R.string.pref_key_open_links_in_external_app), false)
             }
         )
@@ -65,8 +64,7 @@ class Services(
      */
     fun launchPairingSignIn(context: Context, navController: NavController) {
         // Do not navigate to pairing UI if camera not available or pairing is disabled
-        if (context.hasCamera() && !context.isInExperiment(Experiments.asFeatureFxAPairingDisabled)
-        ) {
+        if (context.hasCamera() && !FeatureFlags.asFeatureFxAPairingDisabled) {
             val directions = NavGraphDirections.actionGlobalTurnOnSync()
             navController.navigate(directions)
         } else {

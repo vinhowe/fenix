@@ -10,7 +10,6 @@ import android.os.Bundle
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import mozilla.components.support.utils.Browsers
 import org.mozilla.fenix.components.getType
 import org.mozilla.fenix.components.metrics.Event
 import org.mozilla.fenix.ext.components
@@ -36,17 +35,10 @@ class IntentReceiverActivity : Activity() {
     }
 
     suspend fun processIntent(intent: Intent) {
-        if (!Browsers.all(this).isDefaultBrowser) {
-            /* If the user has unset us as the default browser, unset openLinksInAPrivateTab */
-            this.settings().openLinksInAPrivateTab = false
-            components.analytics.metrics.track(Event.PreferenceToggled(
-                preferenceKey = getString(R.string.pref_key_open_links_in_a_private_tab),
-                enabled = false,
-                context = applicationContext
-            ))
-        }
+        val settings = settings()
+        settings.unsetOpenLinksInAPrivateTabIfNecessary()
 
-        val modeDependentProcessors = if (settings().openLinksInAPrivateTab) {
+        val modeDependentProcessors = if (settings.openLinksInAPrivateTab) {
             components.analytics.metrics.track(Event.OpenedLink(Event.OpenedLink.Mode.PRIVATE))
             listOf(
                 components.intentProcessors.privateCustomTabIntentProcessor,
@@ -60,7 +52,8 @@ class IntentReceiverActivity : Activity() {
             )
         }
 
-        val intentProcessors = components.intentProcessors.externalAppIntentProcessors +
+        val intentProcessors = listOf(components.intentProcessors.migrationIntentProcessor) +
+                components.intentProcessors.externalAppIntentProcessors +
                 modeDependentProcessors +
                 NewTabShortcutIntentProcessor()
 
@@ -72,8 +65,9 @@ class IntentReceiverActivity : Activity() {
 
         intent.setClassName(applicationContext, intentProcessorType.activityClassName)
         intent.putExtra(HomeActivity.OPEN_TO_BROWSER, intentProcessorType.shouldOpenToBrowser(intent))
-        startActivity(intent)
 
+        // finish() before starting another activity. Don't keep this on the activities back stack.
         finish()
+        startActivity(intent)
     }
 }

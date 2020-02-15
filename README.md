@@ -39,8 +39,7 @@ Before you attempt to make a contribution please read the [Community Participati
 
 * Browse our [current Issues](https://github.com/mozilla-mobile/fenix/issues), or [file a security issue][sec issue].
 
-* Slack: #fenix channel on [mozilla-android.slack.com](https://mozilla-android.slack.com) | [Join here](https://join.slack.com/t/mozilla-android/shared_invite/enQtODU0ODk2MTgyMjQyLTU5MWU1ZGJkOGRjZmFjOTg2MTE1ZjlmNTU5ZTc5MDc4NjA1MmM0MjQ5Yjg1N2IzMjZjMGVmOTE0MzI1ZjQ3MTA)
-(**We're available Monday-Friday, GMT and PST working hours**).
+* Matrix: [#fenix:mozilla.org channel](https://chat.mozilla.org/#/room/#fenix:mozilla.org) (**We're available Monday-Friday, GMT and PST working hours**).
 
 * Check out the [project wiki](https://github.com/mozilla-mobile/fenix/wiki) for more information.
 
@@ -63,13 +62,13 @@ Note: Both Android SDK and NDK are required.
   ```shell
   ./gradlew clean app:assembleGeckoBetaDebug
   ```
-  
+
   Use app:assembleGeckoNightlyDebug to build with the Gecko Nightly version instead.
 
 3. Make sure to select the correct build variant in Android Studio. See the next section.
 
 ### Guide to Build Variants
-We have a lot of build variants. Each variant is composed of two flavors. One flavor is the version of Gecko to use and the other describes 
+We have a lot of build variants. Each variant is composed of two flavors. One flavor is the version of Gecko to use and the other describes
 which app id and settings to use. Here is a description of what each means:
 
 - **geckoBeta** (recommended) uses the Beta variant of the Gecko rendering engine, which corresponds to the next version of Gecko which will go to production
@@ -88,13 +87,15 @@ which app id and settings to use. Here is a description of what each means:
 #### Performance Build Variants
 For accurate performance measurements, read this section!
 
-If you want to analyze performance during **local development**:
+If you want to analyze performance during **local development** (note: there is a non-trivial performance impact - see caveats):
 - Recommendation: use a `forPerformanceTest` variant with local Leanplum, Adjust, & Sentry API tokens: contact the front-end perf group for access to them
 - Rationale: `forPerformanceTest` is a release variant with `debuggable` set to true. There are numerous performance-impacting differences between debug and release variants so we need a release variant. To profile, we also need debuggable, which is disabled on other release variants. If API tokens are not provided, the SDKs may change their behavior in non-trivial ways.
 - Caveats:
   - debuggable has a non-trivial & variable impact on performance but is needed to take profiles.
   - Random experiment opt-in & feature flags may impact performance (see [perf-frontend-issues#45](https://github.com/mozilla-mobile/perf-frontend-issues/issues/45) for mitigation).
   - This is slower to build than debug builds because it does additional tasks (e.g. minification) similar to other release builds
+
+Nightly `forPerformanceTest` variants with API tokens already added [are also available from Taskcluster](https://firefox-ci-tc.services.mozilla.com/tasks/index/project.mobile.fenix.v2.performance-test/).
 
 If you want to run **performance tests/benchmarks** in automation or locally:
 - Recommendation: production builds. If debuggable is required, use recommendation above but note the caveat above. If your needs are not met, please contact the front-end perf group to identify a new solution.

@@ -5,7 +5,6 @@
 package org.mozilla.fenix.home.sessioncontrol
 
 import android.view.View
-import androidx.constraintlayout.motion.widget.MotionLayout
 import androidx.navigation.NavController
 import androidx.navigation.fragment.FragmentNavigator
 import kotlinx.coroutines.CoroutineScope
@@ -17,16 +16,18 @@ import mozilla.components.feature.media.ext.pauseIfPlaying
 import mozilla.components.feature.media.ext.playIfPaused
 import mozilla.components.feature.media.state.MediaStateMachine
 import mozilla.components.feature.tab.collections.TabCollection
-import mozilla.components.feature.tab.collections.Tab as ComponentTab
+import mozilla.components.feature.top.sites.TopSite
 import org.mozilla.fenix.BrowserDirection
 import org.mozilla.fenix.HomeActivity
 import org.mozilla.fenix.R
+import org.mozilla.fenix.browser.browsingmode.BrowsingMode
 import org.mozilla.fenix.browser.browsingmode.BrowsingModeManager
 import org.mozilla.fenix.collections.SaveCollectionStep
 import org.mozilla.fenix.components.TabCollectionStorage
-import org.mozilla.fenix.ext.components
+import org.mozilla.fenix.components.TopSiteStorage
 import org.mozilla.fenix.components.metrics.Event
 import org.mozilla.fenix.components.metrics.MetricController
+import org.mozilla.fenix.ext.components
 import org.mozilla.fenix.ext.nav
 import org.mozilla.fenix.ext.sessionsOfType
 import org.mozilla.fenix.home.HomeFragment
@@ -35,6 +36,7 @@ import org.mozilla.fenix.home.HomeFragmentDirections
 import org.mozilla.fenix.home.HomeFragmentStore
 import org.mozilla.fenix.home.Tab
 import org.mozilla.fenix.settings.SupportUtils
+import mozilla.components.feature.tab.collections.Tab as ComponentTab
 
 /**
  * [HomeFragment] controller. An interface that handles the view manipulation of the Tabs triggered
@@ -83,6 +85,11 @@ interface SessionControlController {
     fun handleDeleteCollectionTapped(collection: TabCollection)
 
     /**
+     * @see [TopSiteInteractor.onOpenInPrivateTabClicked]
+     */
+    fun handleOpenInPrivateTabClicked(topSite: TopSite)
+
+    /**
      * @see [TabSessionInteractor.onPauseMediaClicked]
      */
     fun handlePauseMediaClicked()
@@ -96,6 +103,11 @@ interface SessionControlController {
      * @see [TabSessionInteractor.onPrivateBrowsingLearnMoreClicked]
      */
     fun handlePrivateBrowsingLearnMoreClicked()
+
+    /**
+     * @see [TopSiteInteractor.onRemoveTopSiteClicked]
+     */
+    fun handleRemoveTopSiteClicked(topSite: TopSite)
 
     /**
      * @see [CollectionInteractor.onRenameCollectionTapped]
@@ -113,6 +125,11 @@ interface SessionControlController {
     fun handleSelectTab(tabView: View, sessionId: String)
 
     /**
+     * @see [TopSiteInteractor.onSelectTopSite]
+     */
+    fun handleSelectTopSite(url: String)
+
+    /**
      * @see [TabSessionInteractor.onShareTabs]
      */
     fun handleShareTabs()
@@ -123,17 +140,21 @@ interface SessionControlController {
     fun handleStartBrowsingClicked()
 
     /**
+     * @see [OnboardingInteractor.onOpenSettingsClicked]
+     */
+    fun handleOpenSettingsClicked()
+
+    /**
      * @see [CollectionInteractor.onToggleCollectionExpanded]
      */
     fun handleToggleCollectionExpanded(collection: TabCollection, expand: Boolean)
 }
 
-@SuppressWarnings("TooManyFunctions")
+@SuppressWarnings("TooManyFunctions", "LargeClass")
 class DefaultSessionControlController(
     private val activity: HomeActivity,
     private val store: HomeFragmentStore,
     private val navController: NavController,
-    private val homeLayout: MotionLayout,
     private val browsingModeManager: BrowsingModeManager,
     private val lifecycleScope: CoroutineScope,
     private val closeTab: (sessionId: String) -> Unit,
@@ -143,7 +164,8 @@ class DefaultSessionControlController(
     private val invokePendingDeleteJobs: () -> Unit,
     private val registerCollectionStorageObserver: () -> Unit,
     private val scrollToTheTop: () -> Unit,
-    private val showDeleteCollectionPrompt: (tabCollection: TabCollection) -> Unit
+    private val showDeleteCollectionPrompt: (tabCollection: TabCollection) -> Unit,
+    private val openSettingsScreen: () -> Unit
 ) : SessionControlController {
     private val metrics: MetricController
         get() = activity.components.analytics.metrics
@@ -151,6 +173,8 @@ class DefaultSessionControlController(
         get() = activity.components.core.sessionManager
     private val tabCollectionStorage: TabCollectionStorage
         get() = activity.components.core.tabCollectionStorage
+    private val topSiteStorage: TopSiteStorage
+        get() = activity.components.core.topSiteStorage
 
     override fun handleCloseTab(sessionId: String) {
         closeTab.invoke(sessionId)
@@ -239,6 +263,18 @@ class DefaultSessionControlController(
         showDeleteCollectionPrompt(collection)
     }
 
+    override fun handleOpenInPrivateTabClicked(topSite: TopSite) {
+        metrics.track(Event.TopSiteOpenInPrivateTab)
+        with(activity) {
+            browsingModeManager.mode = BrowsingMode.Private
+            openToBrowserAndLoad(
+                searchTermOrURL = topSite.url,
+                newTab = true,
+                from = BrowserDirection.FromHome
+            )
+        }
+    }
+
     override fun handlePauseMediaClicked() {
         MediaStateMachine.state.pauseIfPlaying()
     }
@@ -254,6 +290,17 @@ class DefaultSessionControlController(
             newTab = true,
             from = BrowserDirection.FromHome
         )
+    }
+
+    override fun handleRemoveTopSiteClicked(topSite: TopSite) {
+        metrics.track(Event.TopSiteRemoved)
+        if (topSite.url == SupportUtils.POCKET_TRENDING_URL) {
+            metrics.track(Event.PocketTopSiteRemoved)
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            topSiteStorage.removeTopSite(topSite)
+        }
     }
 
     override fun handleRenameCollectionTapped(collection: TabCollection) {
@@ -291,11 +338,24 @@ class DefaultSessionControlController(
         val directions = HomeFragmentDirections.actionHomeFragmentToBrowserFragment(null)
         val extras =
             FragmentNavigator.Extras.Builder()
-                .addSharedElement(tabView,
+                .addSharedElement(
+                    tabView,
                     "$TAB_ITEM_TRANSITION_NAME$sessionId"
                 )
                 .build()
         navController.nav(R.id.homeFragment, directions, extras)
+    }
+
+    override fun handleSelectTopSite(url: String) {
+        metrics.track(Event.TopSiteOpenInNewTab)
+        if (url == SupportUtils.POCKET_TRENDING_URL) {
+            metrics.track(Event.PocketTopSiteClicked)
+        }
+        activity.components.useCases.tabsUseCases.addTab.invoke(url, true, true)
+        navController.nav(
+            R.id.homeFragment,
+            HomeFragmentDirections.actionHomeFragmentToBrowserFragment(null)
+        )
     }
 
     override fun handleShareTabs() {
@@ -308,8 +368,11 @@ class DefaultSessionControlController(
     }
 
     override fun handleStartBrowsingClicked() {
-        homeLayout.progress = 0F
         hideOnboarding()
+    }
+
+    override fun handleOpenSettingsClicked() {
+        openSettingsScreen()
     }
 
     override fun handleToggleCollectionExpanded(collection: TabCollection, expand: Boolean) {

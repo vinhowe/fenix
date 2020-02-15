@@ -24,7 +24,9 @@ interface ToolbarMenu {
         object ReportIssue : Item()
         object OpenInFenix : Item()
         object SaveToCollection : Item()
+        object AddToTopSites : Item()
         object AddToHomeScreen : Item()
+        object AddonsManager : Item()
         object Quit : Item()
         data class ReaderMode(val isChecked: Boolean) : Item()
         object OpenInApp : Item()
@@ -34,8 +36,4 @@ interface ToolbarMenu {
 
     val menuBuilder: BrowserMenuBuilder
     val menuToolbar: BrowserMenuItemToolbar
-
-    companion object {
-        const val CAPTION_TEXT_SIZE = 12f
-    }
 }

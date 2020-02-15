@@ -13,6 +13,7 @@
     <color name="accent_normal_theme">@color/accent_dark_theme</color>
     <color name="accent_bright_normal_theme">@color/accent_bright_dark_theme</color>
     <color name="accent_high_contrast_normal_theme">@color/accent_high_contrast_dark_theme</color>
+    <color name="about_link_normal_theme">@color/about_link_dark_theme</color>
     <color name="tab_ring_normal_theme">@color/tab_ring_dark_theme</color>
     <color name="neutral_normal_theme">@color/neutral_dark_theme</color>
     <color name="neutral_faded_normal_theme">@color/neutral_faded_dark_theme</color>
@@ -31,7 +32,7 @@
     <color name="toolbar_divider_color_normal_theme">@color/toolbar_divider_color_dark_theme</color>
     <color name="fill_link_from_clipboard_normal_theme">@color/accent_on_dark_background_normal_theme</color>
     <color name="menu_category_normal_theme">@color/primary_text_normal_theme</color>
-    <color name="about_content_text_normal_theme">@color/about_content_text_dark_theme</color>
+
 
 
     <!-- Collection icons-->
@@ -43,4 +44,7 @@
 
     <!-- Reader View colors -->
     <color name="mozac_feature_readerview_text_color">@color/primary_text_dark_theme</color>
+
+    <!-- Onboarding colors -->
+    <color name="onboarding_card_icon">@color/accent_dark_theme</color>
 </resources>

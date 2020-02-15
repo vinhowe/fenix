@@ -102,7 +102,7 @@ class AboutFragment : Fragment(), AboutPageListener {
             AboutPageItem.Item(
                 AboutItem.ExternalLink(
                     WHATS_NEW,
-                    SupportUtils.getSumoURLForTopic(context, SupportUtils.SumoTopic.WHATS_NEW)
+                    SupportUtils.getWhatsNewUrl(context)
                 ), getString(R.string.about_whats_new, getString(R.string.app_name))
             ),
             AboutPageItem.Item(
@@ -149,14 +149,29 @@ class AboutFragment : Fragment(), AboutPageListener {
     override fun onAboutItemClicked(item: AboutItem) {
         Do exhaustive when (item) {
             is AboutItem.ExternalLink -> {
-                if (item.type == WHATS_NEW) {
-                    WhatsNew.userViewedWhatsNew(requireContext())
-                    requireComponents.analytics.metrics.track(Event.WhatsNewTapped(Event.WhatsNewTapped.Source.ABOUT))
+                when (item.type) {
+                    WHATS_NEW -> {
+                        WhatsNew.userViewedWhatsNew(requireContext())
+                        requireComponents.analytics.metrics.track(Event.WhatsNewTapped)
+                    }
+                    SUPPORT -> {
+                        requireComponents.analytics.metrics.track(Event.SupportTapped)
+                    }
+                    PRIVACY_NOTICE -> {
+                        requireComponents.analytics.metrics.track(Event.PrivacyNoticeTapped)
+                    }
+                    RIGHTS -> {
+                        requireComponents.analytics.metrics.track(Event.RightsTapped)
+                    }
+                    LICENSING_INFO -> {
+                        requireComponents.analytics.metrics.track(Event.LicensingTapped)
+                    }
                 }
 
                 openLinkInCustomTab(item.url)
             }
             is AboutItem.Libraries -> {
+                requireComponents.analytics.metrics.track(Event.LibrariesThatWeUseTapped)
                 openLibrariesPage()
             }
         }

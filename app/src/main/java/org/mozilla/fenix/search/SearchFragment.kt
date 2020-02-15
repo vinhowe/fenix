@@ -17,8 +17,11 @@ import android.view.ViewGroup
 import android.view.ViewStub
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
+import androidx.core.view.marginStart
 import androidx.fragment.app.Fragment
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.transition.TransitionInflater
 import kotlinx.android.synthetic.main.fragment_search.*
 import kotlinx.android.synthetic.main.fragment_search.view.*
@@ -71,14 +74,11 @@ class SearchFragment : Fragment(), UserInteractionHandler {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val session = arguments
-            ?.let(SearchFragmentArgs.Companion::fromBundle)
-            ?.let { it.sessionId }
+        val args = arguments?.let { navArgs<SearchFragmentArgs>().value }
+        val session = args?.sessionId
             ?.let(requireComponents.core.sessionManager::findSessionById)
-
-        val pastedText = arguments
-            ?.let(SearchFragmentArgs.Companion::fromBundle)
-            ?.let { it.pastedText }
+        val pastedText = args?.pastedText
+        val searchAccessPoint = args?.searchAccessPoint
 
         val view = inflater.inflate(R.layout.fragment_search, container, false)
         val url = session?.url.orEmpty()
@@ -87,7 +87,7 @@ class SearchFragment : Fragment(), UserInteractionHandler {
         )
 
         val showSearchSuggestions =
-            if ((activity as HomeActivity).browsingModeManager.mode.isPrivate) {
+            if (requireComponents.browsingModeManager.mode.isPrivate) {
                 requireContext().settings().shouldShowSearchSuggestions &&
                         requireContext().settings().shouldShowSearchSuggestionsInPrivate
             } else {
@@ -107,7 +107,9 @@ class SearchFragment : Fragment(), UserInteractionHandler {
                     showHistorySuggestions = requireContext().settings().shouldShowHistorySuggestions,
                     showBookmarkSuggestions = requireContext().settings().shouldShowBookmarkSuggestions,
                     session = session,
-                    pastedText = pastedText
+                    pastedText = pastedText,
+                    searchAccessPoint = searchAccessPoint,
+                    isAnimatingOut = false
                 )
             )
         }
@@ -128,7 +130,7 @@ class SearchFragment : Fragment(), UserInteractionHandler {
             view.toolbar_component_wrapper,
             searchInteractor,
             historyStorageProvider(),
-            (activity as HomeActivity).browsingModeManager.mode.isPrivate
+            requireComponents.browsingModeManager.mode.isPrivate
         )
 
         val urlView = toolbarView.view
@@ -145,7 +147,6 @@ class SearchFragment : Fragment(), UserInteractionHandler {
         super.onViewCreated(view, savedInstanceState)
 
         search_scan_button.visibility = if (context?.hasCamera() == true) View.VISIBLE else View.GONE
-        layoutComponents(view.search_layout)
 
         qrFeature.set(
             QrFeature(
@@ -196,7 +197,7 @@ class SearchFragment : Fragment(), UserInteractionHandler {
         }
 
         view.back_button.setOnClickListener {
-            findNavController().popBackStack()
+            searchInteractor.onEditingCanceled()
         }
 
         val stubListener = ViewStub.OnInflateListener { _, inflated ->
@@ -250,6 +251,7 @@ class SearchFragment : Fragment(), UserInteractionHandler {
             updateSearchWithLabel(it)
             updateClipboardSuggestion(it, requireContext().components.clipboardHandler.url)
             updateSearchSuggestionsHintVisibility(it)
+            updateBackButton(it)
         }
 
         startPostponedEnterTransition()
@@ -313,6 +315,13 @@ class SearchFragment : Fragment(), UserInteractionHandler {
         clipboard_url.text = clipboardUrl
     }
 
+    private fun updateBackButton(searchState: SearchFragmentState) {
+        if (searchState.isAnimatingOut) {
+            searchStore.dispatch(SearchFragmentAction.ConsumeEditingCancelled)
+            animateBackButtonAway()
+        }
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<String>,
@@ -347,6 +356,18 @@ class SearchFragment : Fragment(), UserInteractionHandler {
             search_suggestions_onboarding_divider?.isVisible =
                 search_with_shortcuts.isVisible && state.showSearchSuggestionsHint
         }
+    }
+
+    private fun animateBackButtonAway() {
+        val backButton = requireView().back_button
+        val xTranslation = with(backButton) {
+            -(width + marginStart + paddingStart).toFloat()
+        }
+
+        backButton
+            .animate()
+            .translationX(xTranslation)
+            .interpolator = FastOutSlowInInterpolator()
     }
 
     companion object {

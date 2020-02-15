@@ -10,6 +10,7 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
 import mozilla.components.support.ktx.android.content.appVersionName
 import org.mozilla.fenix.BuildConfig
+import org.mozilla.fenix.Config
 import org.mozilla.fenix.IntentReceiverActivity
 import org.mozilla.fenix.R
 import org.mozilla.fenix.ext.getColorFromAttr
@@ -21,7 +22,10 @@ import java.util.Locale
 object SupportUtils {
     const val RATE_APP_URL = "market://details?id=" + BuildConfig.APPLICATION_ID
     const val MOZILLA_MANIFESTO_URL = "https://www.mozilla.org/en-GB/about/manifesto/"
+    const val POCKET_TRENDING_URL = "https://getpocket.com/fenix-top-articles"
+    const val WIKIPEDIA_URL = "https://www.wikipedia.org/"
     const val FENIX_PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=${BuildConfig.APPLICATION_ID}"
+    const val YOUTUBE_URL = "https://www.youtube.com/"
 
     enum class SumoTopic(internal val topicStr: String) {
         HELP("faq-android"),
@@ -32,7 +36,9 @@ object SupportUtils {
         SEND_TABS("send-tab-preview"),
         SET_AS_DEFAULT_BROWSER("set-firefox-preview-default"),
         SEARCH_SUGGESTION("how-search-firefox-preview"),
-        CUSTOM_SEARCH_ENGINES("custom-search-engines")
+        CUSTOM_SEARCH_ENGINES("custom-search-engines"),
+        UPGRADE_FAQ("firefox-preview-upgrade-faqs"),
+        SYNC_SETUP("how-set-firefox-sync-firefox-preview")
     }
 
     /**
@@ -63,6 +69,12 @@ object SupportUtils {
 
     fun getPrivacyNoticeUrl(locale: Locale = Locale.getDefault()) =
         "https://www.mozilla.org/${getLanguageTag(locale)}/privacy/firefox/"
+
+    fun getWhatsNewUrl(context: Context) = if (Config.channel.isFennec) {
+        getGenericSumoURLForTopic(SumoTopic.UPGRADE_FAQ)
+    } else {
+        getSumoURLForTopic(context, SumoTopic.WHATS_NEW)
+    }
 
     fun createCustomTabIntent(context: Context, url: String): Intent = CustomTabsIntent.Builder()
         .setInstantAppsEnabled(false)

@@ -20,12 +20,14 @@ import mozilla.components.support.base.facts.FactProcessor
 import mozilla.components.support.base.facts.Facts
 import mozilla.components.support.base.log.logger.Logger
 import org.mozilla.fenix.BuildConfig
+import org.mozilla.fenix.GleanMetrics.AppTheme
 import org.mozilla.fenix.GleanMetrics.Collections
 import org.mozilla.fenix.GleanMetrics.ContextMenu
 import org.mozilla.fenix.GleanMetrics.CrashReporter
 import org.mozilla.fenix.GleanMetrics.ErrorPage
 import org.mozilla.fenix.GleanMetrics.Events
 import org.mozilla.fenix.GleanMetrics.Library
+import org.mozilla.fenix.GleanMetrics.Logins
 import org.mozilla.fenix.GleanMetrics.SearchShortcuts
 import org.mozilla.fenix.GleanMetrics.ToolbarSettings
 import org.mozilla.fenix.GleanMetrics.TrackingProtection
@@ -100,8 +102,6 @@ sealed class Event {
     object SearchWidgetVoiceSearchPressed : Event()
     object FindInPageOpened : Event()
     object FindInPageClosed : Event()
-    object FindInPageNext : Event()
-    object FindInPagePrevious : Event()
     object FindInPageSearchCommitted : Event()
     object PrivateBrowsingGarbageIconTapped : Event()
     object PrivateBrowsingSnackbarUndoTapped : Event()
@@ -128,6 +128,9 @@ sealed class Event {
     object NotificationDownloadTryAgain : Event()
     object NotificationMediaPlay : Event()
     object NotificationMediaPause : Event()
+    object TopSiteOpenInNewTab : Event()
+    object TopSiteOpenInPrivateTab : Event()
+    object TopSiteRemoved : Event()
     object TrackingProtectionTrackerList : Event()
     object TrackingProtectionIconPressed : Event()
     object TrackingProtectionSettingsPanel : Event()
@@ -137,7 +140,18 @@ sealed class Event {
     object OpenOneLogin : Event()
     object CopyLogin : Event()
     object ViewLoginPassword : Event()
+    object CustomEngineAdded : Event()
+    object CustomEngineDeleted : Event()
     object PrivateBrowsingShowSearchSuggestions : Event()
+    object WhatsNewTapped : Event()
+    object SupportTapped : Event()
+    object PrivacyNoticeTapped : Event()
+    object RightsTapped : Event()
+    object LicensingTapped : Event()
+    object LibrariesThatWeUseTapped : Event()
+    object PocketTopSiteClicked : Event()
+    object PocketTopSiteRemoved : Event()
+    object FennecToFenixMigrated : Event()
 
     // Interaction events with extras
 
@@ -188,16 +202,17 @@ sealed class Event {
             get() = hashMapOf(TrackingProtection.etpSettingChangedKeys.etpSetting to setting.name)
     }
 
+    data class SaveLoginsSettingChanged(val setting: Setting) : Event() {
+        enum class Setting { NEVER_SAVE, ASK_TO_SAVE }
+
+        override val extras: Map<Logins.saveLoginsSettingChangedKeys, String>?
+            get() = hashMapOf(Logins.saveLoginsSettingChangedKeys.setting to setting.name)
+    }
+
     data class OpenedApp(val source: Source) : Event() {
         enum class Source { APP_ICON, LINK, CUSTOM_TAB }
         override val extras: Map<Events.appOpenedKeys, String>?
             get() = hashMapOf(Events.appOpenedKeys.source to source.name)
-    }
-
-    data class WhatsNewTapped(val source: Source) : Event() {
-        enum class Source { ABOUT, HOME }
-        override val extras: Map<Events.whatsNewTappedKeys, String>?
-            get() = hashMapOf(Events.whatsNewTappedKeys.source to source.name)
     }
 
     data class CollectionSaveButtonPressed(val fromScreen: String) : Event() {
@@ -268,37 +283,47 @@ sealed class Event {
                 }
         }
 
-        sealed class EventSource {
-            data class Suggestion(val engineSource: EngineSource) : EventSource()
-            data class Action(val engineSource: EngineSource) : EventSource()
-
-            private val source: EngineSource
-                get() = when (this) {
-                    is Suggestion -> engineSource
-                    is Action -> engineSource
-                }
+        sealed class EventSource(open val engineSource: EngineSource) {
+            data class Suggestion(override val engineSource: EngineSource) : EventSource(engineSource)
+            data class Action(override val engineSource: EngineSource) : EventSource(engineSource)
+            data class Widget(override val engineSource: EngineSource) : EventSource(engineSource)
+            data class Shortcut(override val engineSource: EngineSource) : EventSource(engineSource)
+            data class Other(override val engineSource: EngineSource) : EventSource(engineSource)
 
             private val label: String
                 get() = when (this) {
                     is Suggestion -> "suggestion"
                     is Action -> "action"
+                    is Widget -> "widget"
+                    is Shortcut -> "shortcut"
+                    is Other -> "other"
                 }
 
             val countLabel: String
-                get() = "${source.identifier.toLowerCase(Locale.getDefault())}.$label"
+                get() = "${engineSource.identifier.toLowerCase(Locale.getDefault())}.$label"
 
             val sourceLabel: String
-                get() = "${source.descriptor}.$label"
+                get() = "${engineSource.descriptor}.$label"
+        }
+
+        enum class SearchAccessPoint {
+            SUGGESTION, ACTION, WIDGET, SHORTCUT, NONE
         }
 
         override val extras: Map<Events.performedSearchKeys, String>?
             get() = mapOf(Events.performedSearchKeys.source to eventSource.sourceLabel)
     }
 
-    // Track only built-in engine selection. Do not track user-added engines!
-    data class SearchShortcutSelected(val engine: String) : Event() {
+    data class SearchShortcutSelected(val engine: SearchEngine, val isCustom: Boolean) : Event() {
+        private val engineName = if (isCustom) "custom" else engine.name
         override val extras: Map<SearchShortcuts.selectedKeys, String>?
-            get() = mapOf(SearchShortcuts.selectedKeys.engine to engine)
+            get() = mapOf(SearchShortcuts.selectedKeys.engine to engineName)
+    }
+
+    data class DarkThemeSelected(val source: Source) : Event() {
+        enum class Source { SETTINGS, ONBOARDING }
+        override val extras: Map<AppTheme.darkThemeSelectedKeys, String>?
+            get() = mapOf(AppTheme.darkThemeSelectedKeys.source to source.name)
     }
 
     class ContextMenuItemTapped private constructor(val item: String) : Event() {
@@ -330,8 +355,8 @@ sealed class Event {
         enum class Item {
             SETTINGS, LIBRARY, HELP, DESKTOP_VIEW_ON, DESKTOP_VIEW_OFF, FIND_IN_PAGE, NEW_TAB,
             NEW_PRIVATE_TAB, SHARE, REPORT_SITE_ISSUE, BACK, FORWARD, RELOAD, STOP, OPEN_IN_FENIX,
-            SAVE_TO_COLLECTION, ADD_TO_HOMESCREEN, QUIT, READER_MODE_ON, READER_MODE_OFF, OPEN_IN_APP,
-            BOOKMARK, READER_MODE_APPEARANCE
+            SAVE_TO_COLLECTION, ADD_TO_TOP_SITES, ADD_TO_HOMESCREEN, QUIT, READER_MODE_ON,
+            READER_MODE_OFF, OPEN_IN_APP, BOOKMARK, READER_MODE_APPEARANCE, ADDONS_MANAGER
         }
 
         override val extras: Map<Events.browserMenuActionKeys, String>?
@@ -345,8 +370,6 @@ sealed class Event {
 }
 
 private fun Fact.toEvent(): Event? = when (Pair(component, item)) {
-    Component.FEATURE_FINDINPAGE to FindInPageFacts.Items.PREVIOUS -> Event.FindInPagePrevious
-    Component.FEATURE_FINDINPAGE to FindInPageFacts.Items.NEXT -> Event.FindInPageNext
     Component.FEATURE_FINDINPAGE to FindInPageFacts.Items.CLOSE -> Event.FindInPageClosed
     Component.FEATURE_FINDINPAGE to FindInPageFacts.Items.INPUT -> Event.FindInPageSearchCommitted
     Component.FEATURE_CONTEXTMENU to ContextMenuFacts.Items.ITEM -> {
@@ -388,7 +411,13 @@ private fun Fact.toEvent(): Event? = when (Pair(component, item)) {
     else -> null
 }
 
+enum class MetricServiceType {
+    Data, Marketing;
+}
+
 interface MetricsService {
+    val type: MetricServiceType
+
     fun start()
     fun stop()
     fun track(event: Event)
@@ -396,24 +425,32 @@ interface MetricsService {
 }
 
 interface MetricController {
-    fun start()
-    fun stop()
+    fun start(type: MetricServiceType)
+    fun stop(type: MetricServiceType)
     fun track(event: Event)
 
     companion object {
-        fun create(services: List<MetricsService>, isTelemetryEnabled: () -> Boolean): MetricController {
-            return if (BuildConfig.TELEMETRY) return ReleaseMetricController(services, isTelemetryEnabled)
-            else DebugMetricController()
+        fun create(
+            services: List<MetricsService>,
+            isDataTelemetryEnabled: () -> Boolean,
+            isMarketingDataTelemetryEnabled: () -> Boolean
+        ): MetricController {
+            return if (BuildConfig.TELEMETRY) {
+                ReleaseMetricController(
+                    services,
+                    isDataTelemetryEnabled,
+                    isMarketingDataTelemetryEnabled)
+            } else DebugMetricController()
         }
     }
 }
 
 private class DebugMetricController : MetricController {
-    override fun start() {
+    override fun start(type: MetricServiceType) {
         Logger.debug("DebugMetricController: start")
     }
 
-    override fun stop() {
+    override fun stop(type: MetricServiceType) {
         Logger.debug("DebugMetricController: stop")
     }
 
@@ -424,9 +461,10 @@ private class DebugMetricController : MetricController {
 
 private class ReleaseMetricController(
     private val services: List<MetricsService>,
-    private val isTelemetryEnabled: () -> Boolean
+    private val isDataTelemetryEnabled: () -> Boolean,
+    private val isMarketingDataTelemetryEnabled: () -> Boolean
 ) : MetricController {
-    private var initialized = false
+    private var initialized = mutableSetOf<MetricServiceType>()
 
     init {
         Facts.registerProcessor(object : FactProcessor {
@@ -438,25 +476,46 @@ private class ReleaseMetricController(
         })
     }
 
-    override fun start() {
-        if (!isTelemetryEnabled.invoke() || initialized) { return }
+    override fun start(type: MetricServiceType) {
+        val isEnabled = isTelemetryEnabled(type)
+        val isInitialized = isInitialized(type)
+        if (!isEnabled || isInitialized) { return }
 
-        services.forEach { it.start() }
-        initialized = true
+        services
+            .filter { it.type == type }
+            .forEach { it.start() }
+
+        initialized.add(type)
     }
 
-    override fun stop() {
-        if (!initialized) { return }
+    override fun stop(type: MetricServiceType) {
+        val isEnabled = isTelemetryEnabled(type)
+        val isInitialized = isInitialized(type)
+        if (isEnabled || !isInitialized) { return }
 
-        services.forEach { it.stop() }
-        initialized = false
+        services
+            .filter { it.type == type }
+            .forEach { it.stop() }
+
+        initialized.remove(type)
     }
 
     override fun track(event: Event) {
-        if (!isTelemetryEnabled.invoke() && !initialized) { return }
-
         services
             .filter { it.shouldTrack(event) }
-            .forEach { it.track(event) }
+            .forEach {
+                val isEnabled = isTelemetryEnabled(it.type)
+                val isInitialized = isInitialized(it.type)
+                if (!isEnabled || !isInitialized) { return }
+
+                it.track(event)
+            }
+    }
+
+    private fun isInitialized(type: MetricServiceType): Boolean = initialized.contains(type)
+
+    private fun isTelemetryEnabled(type: MetricServiceType): Boolean = when (type) {
+        MetricServiceType.Data -> isDataTelemetryEnabled()
+        MetricServiceType.Marketing -> isMarketingDataTelemetryEnabled()
     }
 }

@@ -23,6 +23,7 @@ import kotlinx.coroutines.MainScope
 import mozilla.components.browser.search.SearchEngine
 import mozilla.components.browser.search.provider.SearchEngineList
 import org.mozilla.fenix.R
+import org.mozilla.fenix.components.metrics.Event
 import org.mozilla.fenix.components.searchengine.CustomSearchEngineStore
 import org.mozilla.fenix.ext.components
 import org.mozilla.fenix.ext.getRootView
@@ -128,7 +129,7 @@ abstract class SearchEngineListPreference @JvmOverloads constructor(
                 onItemTapped = {
                     when (it) {
                         is SearchEngineMenu.Item.Edit -> editCustomSearchEngine(engine)
-                        is SearchEngineMenu.Item.Delete -> deleteSearchEngine(context, engine)
+                        is SearchEngineMenu.Item.Delete -> deleteSearchEngine(context, engine, isCustomSearchEngine)
                     }
                 }
             ).menuBuilder.build(context).show(wrapper.overflow_menu)
@@ -161,7 +162,7 @@ abstract class SearchEngineListPreference @JvmOverloads constructor(
         Navigation.findNavController(searchEngineGroup!!).navigate(directions)
     }
 
-    private fun deleteSearchEngine(context: Context, engine: SearchEngine) {
+    private fun deleteSearchEngine(context: Context, engine: SearchEngine, isCustomSearchEngine: Boolean) {
         val isDefaultEngine = engine == context.components.search.provider.getDefaultEngine(context)
         val initialEngineList = searchEngineList.copy()
         val initialDefaultEngine = searchEngineList.default
@@ -191,6 +192,10 @@ abstract class SearchEngineListPreference @JvmOverloads constructor(
                         .getDefaultEngine(context)
                         .name
                 }
+                if (isCustomSearchEngine) {
+                    context.components.analytics.metrics.track(Event.CustomEngineDeleted)
+                }
+                refreshSearchEngineViews(context)
             }
         )
 

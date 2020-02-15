@@ -17,6 +17,7 @@ import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.matcher.IntentMatchers.toPackage
 import androidx.test.espresso.matcher.ViewMatchers
 import androidx.test.espresso.matcher.ViewMatchers.Visibility
+import androidx.test.espresso.matcher.ViewMatchers.isCompletelyDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -35,10 +36,10 @@ import org.mozilla.fenix.helpers.click
 class SettingsRobot {
 
     // BASICS SECTION
-    fun verifyBasicsHeading() = assertBasicsHeading()
+    fun verifyBasicsHeading() = assertGeneralHeading()
 
     fun verifySearchEngineButton() = assertSearchEngineButton()
-    fun verifyThemeButton() = assertThemeButton()
+    fun verifyThemeButton() = assertCustomizeButton()
     fun verifyThemeSelected() = assertThemeSelected()
     fun verifyAccessibilityButton() = assertAccessibilityButton()
     fun verifySetAsDefaultBrowserButton() = assertSetAsDefaultBrowserButton()
@@ -51,7 +52,7 @@ class SettingsRobot {
     fun verifyEnhancedTrackingProtectionValue(state: String) =
         assertEnhancedTrackingProtectionValue(state)
 
-    fun verifyAddPrivateBrowsingShortcutButton() = assertAddPrivateBrowsingShortcutButton()
+    fun verifyAddPrivateBrowsingShortcutButton() = assertPrivateBrowsingButton()
     fun verifySitePermissionsButton() = assertSitePermissionsButton()
     fun verifyDeleteBrowsingDataButton() = assertDeleteBrowsingDataButton()
     fun verifyDeleteBrowsingDataOnQuitButton() = assertDeleteBrowsingDataOnQuitButton()
@@ -101,10 +102,10 @@ class SettingsRobot {
             return SettingsSubMenuSearchRobot.Transition()
         }
 
-        fun openThemeSubMenu(interact: SettingsSubMenuThemeRobot.() -> Unit): SettingsSubMenuThemeRobot.Transition {
+        fun openCustomizeSubMenu(interact: SettingsSubMenuThemeRobot.() -> Unit): SettingsSubMenuThemeRobot.Transition {
 
-            fun themeButton() = onView(ViewMatchers.withText("Theme"))
-            themeButton().click()
+            fun customizeButton() = onView(ViewMatchers.withText("Customize"))
+            customizeButton().click()
 
             SettingsSubMenuThemeRobot().interact()
             return SettingsSubMenuThemeRobot.Transition()
@@ -138,25 +139,34 @@ class SettingsRobot {
         }
 
         fun openLoginsAndPasswordSubMenu(interact: SettingsSubMenuLoginsAndPasswordRobot.() -> Unit): SettingsSubMenuLoginsAndPasswordRobot.Transition {
+            TestHelper.scrollToElementByText("Logins and passwords")
             fun loginsAndPasswordsButton() = onView(ViewMatchers.withText("Logins and passwords"))
             loginsAndPasswordsButton().click()
 
             SettingsSubMenuLoginsAndPasswordRobot().interact()
             return SettingsSubMenuLoginsAndPasswordRobot.Transition()
         }
+
+        fun openTurnOnSyncMenu(interact: SettingsTurnOnSyncRobot.() -> Unit): SettingsTurnOnSyncRobot.Transition {
+            fun turnOnSyncButton() = onView(ViewMatchers.withText("Turn on Sync"))
+            turnOnSyncButton().click()
+
+            SettingsTurnOnSyncRobot().interact()
+            return SettingsTurnOnSyncRobot.Transition()
+        }
     }
 }
 
 private fun assertSettingsView() {
     // verify that we are in the correct library view
-    assertBasicsHeading()
+    assertGeneralHeading()
     assertPrivacyHeading()
     assertDeveloperToolsHeading()
     assertAboutHeading()
 }
 
-// BASICS SECTION
-private fun assertBasicsHeading() = onView(ViewMatchers.withText("Basics"))
+// GENERAL SECTION
+private fun assertGeneralHeading() = onView(ViewMatchers.withText("General"))
     .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
 
 private fun assertSearchEngineButton() {
@@ -165,7 +175,7 @@ private fun assertSearchEngineButton() {
         .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
 }
 
-private fun assertThemeButton() = onView(ViewMatchers.withText("Theme"))
+private fun assertCustomizeButton() = onView(ViewMatchers.withText("Customize"))
     .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
 
 private fun assertThemeSelected() = onView(ViewMatchers.withText("Light"))
@@ -180,7 +190,7 @@ private fun assertSetAsDefaultBrowserButton() =
 
 // PRIVACY SECTION
 private fun assertPrivacyHeading() {
-    onView(ViewMatchers.withText("Privacy"))
+    onView(ViewMatchers.withText("Privacy and security"))
         .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
 }
 
@@ -201,10 +211,10 @@ private fun assertLoginsButton() {
         .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
 }
 
-private fun assertAddPrivateBrowsingShortcutButton() {
-    TestHelper.scrollToElementByText("Add private browsing shortcut")
-    mDevice.wait(Until.findObject(By.text("Add private browsing shortcut")), waitingTime)
-    onView(ViewMatchers.withText("Add private browsing shortcut"))
+private fun assertPrivateBrowsingButton() {
+    TestHelper.scrollToElementByText("Private browsing")
+    mDevice.wait(Until.findObject(By.text("Private browsing")), waitingTime)
+    onView(ViewMatchers.withText("Private browsing"))
         .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
 }
 
@@ -249,19 +259,19 @@ private fun assertRemoteDebug() {
 private fun assertAboutHeading(): ViewInteraction {
     TestHelper.scrollToElementByText("About")
     return onView(ViewMatchers.withText("About"))
-        .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
+        .check(matches(isCompletelyDisplayed()))
 }
 
 private fun assertRateOnGooglePlay(): ViewInteraction {
     TestHelper.scrollToElementByText("About Firefox Preview")
     return onView(ViewMatchers.withText("Rate on Google Play"))
-        .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
+        .check(matches(isCompletelyDisplayed()))
 }
 
 private fun assertAboutFirefoxPreview(): ViewInteraction {
     TestHelper.scrollToElementByText("About Firefox Preview")
     return onView(ViewMatchers.withText("About Firefox Preview"))
-        .check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
+        .check(matches(isCompletelyDisplayed()))
 }
 
 fun swipeToBottom() = onView(ViewMatchers.withId(R.id.recycler_view)).perform(ViewActions.swipeUp())

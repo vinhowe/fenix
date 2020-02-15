@@ -5,11 +5,13 @@
 package org.mozilla.fenix.ui
 
 import androidx.test.espresso.Espresso.openActionBarOverflowOrOptionsMenu
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import kotlinx.coroutines.runBlocking
 import mozilla.appservices.places.BookmarkRoot
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mozilla.fenix.ext.bookmarkStorage
@@ -102,6 +104,7 @@ class BookmarksTest {
             verifyKeyboardVisible()
             addNewFolderName(bookmarksFolderName)
             saveNewFolder()
+            getInstrumentation().waitForIdleSync()
             verifyFolderTitle(bookmarksFolderName)
             verifyKeyboardHidden()
         }
@@ -267,6 +270,7 @@ class BookmarksTest {
         }
     }
 
+    @Ignore("Temp disable: Nexus 6 failures - issue: https://github.com/mozilla-mobile/fenix/issues/7417")
     @Test
     fun deleteMultipleSelectionTest() {
         val firstWebPage = TestAssetHelper.getGenericAsset(mockWebServer, 1)
@@ -313,14 +317,18 @@ class BookmarksTest {
         }
     }
 
+    @Ignore("Temp disable: Nexus 6 failures - issue: https://github.com/mozilla-mobile/fenix/issues/7417")
     @Test
     fun multipleBookmarkDeletions() {
         homeScreen {
         }.openThreeDotMenu {
         }.openBookmarks {
             createFolder("1")
+            getInstrumentation().waitForIdleSync()
             createFolder("2")
+            getInstrumentation().waitForIdleSync()
             createFolder("3")
+            getInstrumentation().waitForIdleSync()
         }.openThreeDotMenu("1") {
         }.clickDelete {
         }.openThreeDotMenu("2") {

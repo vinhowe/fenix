@@ -9,6 +9,7 @@
     <attr name="contrastText" format="reference" />
     <attr name="accent" format="reference" />
     <attr name="accentBright" format="reference" />
+    <attr name="aboutLink" format="reference" />
     <attr name="accentHighContrast" format="reference" />
     <attr name="accentUsedOnDarkBackground" format="reference" />
     <attr name="tabRing" format="reference" />
@@ -30,6 +31,7 @@
     <!-- Misc -->
     <attr name="homeBackground" format="reference"/>
     <attr name="bottomBarBackground" format="reference"/>
+    <attr name="bottomBarBackgroundTop" format="reference"/>
     <attr name="privateBrowsingButtonBackground" format="reference" />
     <attr name="privateBrowsingButtonAccent" format="reference" />
     <attr name="fenixLogo" format="reference" />

@@ -6,6 +6,7 @@ package org.mozilla.fenix
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.util.AttributeSet
 import android.view.View
@@ -13,7 +14,7 @@ import androidx.annotation.CallSuper
 import androidx.annotation.IdRes
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.VisibleForTesting.PROTECTED
-import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.ActionBar
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination
@@ -21,22 +22,25 @@ import androidx.navigation.NavDirections
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
+import kotlinx.android.synthetic.main.activity_home.navigationToolbarStub
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import mozilla.components.browser.search.SearchEngine
 import mozilla.components.browser.session.Session
 import mozilla.components.browser.session.SessionManager
+import mozilla.components.browser.state.state.WebExtensionState
 import mozilla.components.concept.engine.EngineView
 import mozilla.components.service.fxa.sync.SyncReason
 import mozilla.components.support.base.feature.UserInteractionHandler
 import mozilla.components.support.ktx.kotlin.isUrl
 import mozilla.components.support.ktx.kotlin.toNormalizedUrl
-import mozilla.components.support.utils.Browsers
+import mozilla.components.support.locale.LocaleAwareAppCompatActivity
 import mozilla.components.support.utils.SafeIntent
 import mozilla.components.support.utils.toSafeIntent
+import mozilla.components.support.webextensions.WebExtensionPopupFeature
 import org.mozilla.fenix.browser.UriOpenedObserver
 import org.mozilla.fenix.browser.browsingmode.BrowsingMode
-import org.mozilla.fenix.browser.browsingmode.BrowsingModeManager
-import org.mozilla.fenix.browser.browsingmode.DefaultBrowsingModeManager
+import org.mozilla.fenix.browser.browsingmode.BrowsingModeListener
 import org.mozilla.fenix.components.metrics.BreadcrumbsRecorder
 import org.mozilla.fenix.components.metrics.Event
 import org.mozilla.fenix.exceptions.ExceptionsFragmentDirections
@@ -52,26 +56,34 @@ import org.mozilla.fenix.home.intent.SpeechProcessingIntentProcessor
 import org.mozilla.fenix.home.intent.StartSearchIntentProcessor
 import org.mozilla.fenix.library.bookmarks.BookmarkFragmentDirections
 import org.mozilla.fenix.library.history.HistoryFragmentDirections
-import org.mozilla.fenix.onboarding.FenixOnboarding
 import org.mozilla.fenix.perf.HotStartPerformanceMonitor
+import org.mozilla.fenix.perf.Performance
 import org.mozilla.fenix.search.SearchFragmentDirections
-import org.mozilla.fenix.settings.about.AboutFragmentDirections
 import org.mozilla.fenix.settings.DefaultBrowserSettingsFragmentDirections
 import org.mozilla.fenix.settings.SettingsFragmentDirections
 import org.mozilla.fenix.settings.TrackingProtectionFragmentDirections
+import org.mozilla.fenix.settings.about.AboutFragmentDirections
+import org.mozilla.fenix.settings.logins.SavedLoginsFragmentDirections
 import org.mozilla.fenix.theme.DefaultThemeManager
 import org.mozilla.fenix.theme.ThemeManager
-import java.lang.ref.WeakReference
+import org.mozilla.fenix.utils.BrowsersCache
 
 @SuppressWarnings("TooManyFunctions", "LargeClass")
-open class HomeActivity : AppCompatActivity() {
+open class HomeActivity : LocaleAwareAppCompatActivity() {
 
+    private var webExtScope: CoroutineScope? = null
     lateinit var themeManager: ThemeManager
-    lateinit var browsingModeManager: BrowsingModeManager
+    private val browsingModeManager get() = components.browsingModeManager
 
     private var sessionObserver: SessionManager.Observer? = null
 
     private val hotStartMonitor = HotStartPerformanceMonitor()
+
+    private var isToolbarInflated = false
+
+    private val webExtensionPopupFeature by lazy {
+        WebExtensionPopupFeature(components.core.store, ::openPopup)
+    }
 
     private val navHost by lazy {
         supportFragmentManager.findFragmentById(R.id.container) as NavHostFragment
@@ -79,28 +91,40 @@ open class HomeActivity : AppCompatActivity() {
 
     private val externalSourceIntentProcessors by lazy {
         listOf(
-            SpeechProcessingIntentProcessor(this),
+            SpeechProcessingIntentProcessor(this, components.analytics.metrics),
             StartSearchIntentProcessor(components.analytics.metrics),
             DeepLinkIntentProcessor(this),
             OpenBrowserIntentProcessor(this, ::getIntentSessionId)
         )
     }
 
+    private val browsingModeListener = object : BrowsingModeListener {
+        override fun onBrowsingModeChange(newMode: BrowsingMode) {
+            themeManager.currentTheme = newMode
+        }
+    }
+
+    override fun applyOverrideConfiguration(overrideConfiguration: Configuration?) {
+        if (overrideConfiguration != null) {
+            val uiMode = overrideConfiguration.uiMode
+            overrideConfiguration.setTo(baseContext.resources.configuration)
+            overrideConfiguration.uiMode = uiMode
+        }
+        super.applyOverrideConfiguration(overrideConfiguration)
+    }
+
     final override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val mode = getPrivateModeFromIntent(intent)
-
         components.publicSuffixList.prefetch()
-        setupThemeAndBrowsingMode(mode)
 
+        setupThemeAndBrowsingMode(getModeFromIntentOrLastKnown(intent))
         setContentView(R.layout.activity_home)
+        Performance.instrumentColdStartupToHomescreenTime(this)
 
-        setupToolbarAndNavigation()
+        externalSourceIntentProcessors.any { it.process(intent, navHost.navController, this.intent) }
 
-        if (intent.getBooleanExtra(EXTRA_FINISH_ONBOARDING, false)) {
-            FenixOnboarding(this).finish()
-        }
+        Performance.processIntentIfPerformanceTest(intent, this)
 
         if (settings().isTelemetryEnabled) {
             lifecycle.addObserver(BreadcrumbsRecorder(components.analytics.crashReporter,
@@ -112,13 +136,13 @@ open class HomeActivity : AppCompatActivity() {
                 ?.also { components.analytics.metrics.track(Event.OpenedApp(it)) }
         }
         supportActionBar?.hide()
+
+        lifecycle.addObserver(webExtensionPopupFeature)
     }
 
     @CallSuper
     override fun onResume() {
         super.onResume()
-
-        unsetOpenLinksInAPrivateTabIfNecessary()
 
         lifecycleScope.launch {
             with(components.backgroundServices) {
@@ -127,7 +151,6 @@ open class HomeActivity : AppCompatActivity() {
                 // If we're authenticated, kick-off a sync and a device state refresh.
                 accountManager.authenticatedAccount()?.let {
                     accountManager.syncNowAsync(SyncReason.Startup, debounce = true)
-                    it.deviceConstellation().pollForEventsAsync().await()
                 }
             }
         }
@@ -143,19 +166,25 @@ open class HomeActivity : AppCompatActivity() {
         hotStartMonitor.onPostResumeFinalMethodCall()
     }
 
-    private fun unsetOpenLinksInAPrivateTabIfNecessary() {
-        // Toggle off the open_link_in_private_tab pref if we are no longer set as the default browser
-        // We do this on a separate thread to alleviate performance issues
-        val weakReferenceContext = WeakReference(this)
-        lifecycleScope.launch {
-            val context = weakReferenceContext.get() ?: return@launch
-            if (!Browsers.all(context).isDefaultBrowser) {
-                context.settings().preferences
-                    .edit()
-                    .putBoolean(context.getString(R.string.pref_key_open_links_in_a_private_tab), false)
-                    .apply()
-            }
-        }
+    final override fun onStart() {
+        super.onStart()
+        browsingModeManager.registerBrowsingModeListener(browsingModeListener)
+    }
+
+    final override fun onStop() {
+        super.onStop()
+        browsingModeManager.unregisterBrowsingModeListener()
+    }
+
+    final override fun onPause() {
+        super.onPause()
+
+        // Every time the application goes into the background, it is possible that the user
+        // is about to change the browsers installed on their system. Therefore, we reset the cache of
+        // all the installed browsers.
+        //
+        // NB: There are ways for the user to install new products without leaving the browser.
+        BrowsersCache.resetAll()
     }
 
     /**
@@ -167,7 +196,7 @@ open class HomeActivity : AppCompatActivity() {
 
         val intentProcessors = listOf(CrashReporterIntentProcessor()) + externalSourceIntentProcessors
         intentProcessors.any { it.process(intent, navHost.navController, this.intent) }
-        browsingModeManager.mode = getPrivateModeFromIntent(intent)
+        browsingModeManager.mode = getModeFromIntentOrLastKnown(intent)
     }
 
     /**
@@ -208,38 +237,50 @@ open class HomeActivity : AppCompatActivity() {
 
     /**
      * External sources such as 3rd party links and shortcuts use this function to enter
-     * private mode directly before the content view is created.
+     * private mode directly before the content view is created. Returns the mode set by the intent
+     * otherwise falls back to the last known mode.
      */
-    private fun getPrivateModeFromIntent(intent: Intent?): BrowsingMode {
+    internal fun getModeFromIntentOrLastKnown(intent: Intent?): BrowsingMode {
         intent?.toSafeIntent()?.let {
             if (it.hasExtra(PRIVATE_BROWSING_MODE)) {
                 val startPrivateMode = it.getBooleanExtra(PRIVATE_BROWSING_MODE, false)
-                intent.removeExtra(PRIVATE_BROWSING_MODE)
-
                 return BrowsingMode.fromBoolean(isPrivate = startPrivateMode)
             }
         }
-        return BrowsingMode.Normal
+        return settings().lastKnownMode
     }
 
     private fun setupThemeAndBrowsingMode(mode: BrowsingMode) {
-        browsingModeManager = createBrowsingModeManager(mode)
+        settings().lastKnownMode = mode
+        browsingModeManager.mode = mode
         themeManager = createThemeManager()
         themeManager.setActivityTheme(this)
         themeManager.applyStatusBarTheme(this)
     }
 
-    private fun setupToolbarAndNavigation() {
+    /**
+     * Returns the [supportActionBar], inflating it if necessary.
+     * Everyone should call this instead of supportActionBar.
+     */
+    fun getSupportActionBarAndInflateIfNecessary(): ActionBar {
         // Add ids to this that we don't want to have a toolbar back button
-        val appBarConfiguration = AppBarConfiguration.Builder().build()
-        val navigationToolbar = findViewById<Toolbar>(R.id.navigationToolbar)
-        setSupportActionBar(navigationToolbar)
-        NavigationUI.setupWithNavController(navigationToolbar, navHost.navController, appBarConfiguration)
-        navigationToolbar.setNavigationOnClickListener {
-            onBackPressed()
-        }
+        if (!isToolbarInflated) {
+            val navigationToolbar = navigationToolbarStub.inflate() as Toolbar
 
-        externalSourceIntentProcessors.any { it.process(intent, navHost.navController, this.intent) }
+            setSupportActionBar(navigationToolbar)
+
+            NavigationUI.setupWithNavController(
+                navigationToolbar,
+                navHost.navController,
+                AppBarConfiguration.Builder().build()
+            )
+            navigationToolbar.setNavigationOnClickListener {
+                onBackPressed()
+            }
+
+            isToolbarInflated = true
+        }
+        return supportActionBar!!
     }
 
     protected open fun getIntentSessionId(intent: SafeIntent): String? = null
@@ -258,8 +299,9 @@ open class HomeActivity : AppCompatActivity() {
     }
 
     fun openToBrowser(from: BrowserDirection, customTabSessionId: String? = null) {
-        if (sessionObserver == null)
+        if (sessionObserver == null) {
             sessionObserver = UriOpenedObserver(this)
+        }
 
         if (navHost.navController.alreadyOnDestination(R.id.browserFragment)) return
         @IdRes val fragmentId = if (from.fragmentId != 0) from.fragmentId else null
@@ -297,6 +339,10 @@ open class HomeActivity : AppCompatActivity() {
             )
         BrowserDirection.FromDefaultBrowserSettingsFragment ->
             DefaultBrowserSettingsFragmentDirections.actionDefaultBrowserSettingsFragmentToBrowserFragment(
+                customTabSessionId
+            )
+        BrowserDirection.FromSavedLoginsFragment ->
+            SavedLoginsFragmentDirections.actionSavedLoginsFragmentToBrowserFragment(
                 customTabSessionId
             )
     }
@@ -343,14 +389,16 @@ open class HomeActivity : AppCompatActivity() {
         }
     }
 
-    protected open fun createBrowsingModeManager(initialMode: BrowsingMode): BrowsingModeManager {
-        return DefaultBrowsingModeManager(initialMode) { newMode ->
-            themeManager.currentTheme = newMode
-        }
-    }
-
     protected open fun createThemeManager(): ThemeManager {
         return DefaultThemeManager(browsingModeManager.mode, this)
+    }
+
+    private fun openPopup(webExtensionState: WebExtensionState) {
+        val action = NavGraphDirections.actionGlobalWebExtensionActionPopupFragment(
+            webExtensionId = webExtensionState.id,
+            webExtensionTitle = webExtensionState.name
+        )
+        navHost.navController.navigate(action)
     }
 
     companion object {
@@ -360,6 +408,5 @@ open class HomeActivity : AppCompatActivity() {
         const val PRIVATE_BROWSING_MODE = "private_browsing_mode"
         const val EXTRA_DELETE_PRIVATE_TABS = "notification_delete_and_open"
         const val EXTRA_OPENED_FROM_NOTIFICATION = "notification_open"
-        const val EXTRA_FINISH_ONBOARDING = "finishonboarding"
     }
 }

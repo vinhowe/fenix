@@ -14,33 +14,68 @@ import mozilla.components.support.migration.FennecMigrator
 class MigratingFenixApplication : FenixApplication() {
     val migrator by lazy {
         FennecMigrator.Builder(this, this.components.analytics.crashReporter)
-            .migrateSettings()
             .migrateOpenTabs(this.components.core.sessionManager)
             .migrateHistory(this.components.core.historyStorage)
-            .migrateBookmarks(this.components.core.bookmarksStorage)
+            .migrateBookmarks(
+                this.components.core.bookmarksStorage,
+                this.components.core.topSiteStorage.storage
+            )
             .migrateLogins(
-                this.components.core.passwordsStorage.store,
+                this.components.core.asyncPasswordsStorage,
                 this.components.core.passwordsEncryptionKey
             )
             .migrateFxa(this.components.backgroundServices.accountManager)
+            .migrateAddons(
+                this.components.core.engine,
+                this.components.addonCollectionProvider,
+                this.components.addonUpdater
+            )
+            .migrateTelemetryIdentifiers()
+            .migrateSearchEngine(this.components.search.searchEngineManager)
             .build()
+    }
+
+    val migrationPushSubscriber by lazy {
+        MigrationPushRenewer(
+            components.backgroundServices.push,
+            components.migrationStore
+        )
+    }
+
+    val migrationTelemetryListener by lazy {
+        MigrationTelemetryListener(
+            components.analytics.metrics,
+            components.migrationStore
+        )
     }
 
     override fun setupInMainProcessOnly() {
-        migrateGeckoBlocking()
+        // These migrations need to run before regular initialization happens.
+        migrateBlocking()
 
+        // Now that we have migrated from Fennec whether the user wants to enable telemetry we can
+        // initialize Glean
+        initializeGlean()
+
+        // Fenix application initialization can happen now.
         super.setupInMainProcessOnly()
 
-        migrator.startMigrationServiceIfNeeded(MigrationService::class.java)
+        // The rest of the migrations can happen now.
+        migrationPushSubscriber.start()
+        migrationTelemetryListener.start()
+        migrator.startMigrationIfNeeded(components.migrationStore, MigrationService::class.java)
     }
 
-    private fun migrateGeckoBlocking() {
+    private fun migrateBlocking() {
         val migrator = FennecMigrator.Builder(this, this.components.analytics.crashReporter)
             .migrateGecko()
+            // Telemetry may have been disabled in Fennec, so we need to migrate Settings first
+            // to correctly initialize telemetry.
+            .migrateSettings()
             .build()
 
         runBlocking {
-            migrator.migrateAsync().await()
+            migrator.migrateAsync(components.migrationStore).await()
         }
     }
 }

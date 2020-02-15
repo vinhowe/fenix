@@ -98,9 +98,8 @@ class BrowserToolbarView(
                     clipboard.text = selectedSession?.url
                 }
 
-                FenixSnackbar.make(view, Snackbar.LENGTH_SHORT)
+                FenixSnackbar.makeWithToolbarPadding(view, Snackbar.LENGTH_SHORT)
                     .setText(view.context.getString(R.string.browser_toolbar_url_copied_to_clipboard_snackbar))
-                    .setAnchorView(view)
                     .show()
             }
 
@@ -141,10 +140,10 @@ class BrowserToolbarView(
                     false
                 }
 
-                display.progressGravity = if (isCustomTabSession) {
-                    DisplayToolbar.Gravity.BOTTOM
-                } else {
+                display.progressGravity = if (shouldUseBottomToolbar) {
                     DisplayToolbar.Gravity.TOP
+                } else {
+                    DisplayToolbar.Gravity.BOTTOM
                 }
 
                 val primaryTextColor = ContextCompat.getColor(
@@ -178,6 +177,7 @@ class BrowserToolbarView(
                     this,
                     sessionManager,
                     customTabSession?.id,
+                    shouldReverseItems = !shouldUseBottomToolbar,
                     onItemTapped = {
                         interactor.onBrowserToolbarMenuItemTapped(it)
                     }
@@ -186,12 +186,6 @@ class BrowserToolbarView(
                 DefaultToolbarMenu(
                     context = this,
                     hasAccountProblem = components.backgroundServices.accountManager.accountNeedsReauth(),
-                    requestDesktopStateProvider = {
-                        sessionManager.selectedSession?.desktopMode ?: false
-                    },
-                    readerModeStateProvider = {
-                        sessionManager.selectedSession?.readerMode ?: false
-                    },
                     shouldReverseItems = !shouldUseBottomToolbar,
                     onItemTapped = { interactor.onBrowserToolbarMenuItemTapped(it) },
                     lifecycleOwner = container.context as AppCompatActivity,
@@ -223,14 +217,6 @@ class BrowserToolbarView(
             }
         }
     }
-
-    /**
-     * Returns the correct snackbar anchor for bottom or top toolbar configuration.
-     * A null anchor view is ignored.
-     *
-     * @see #setAnchorView(com.google.android.material.snackbar.BaseTransientBottomBar)
-     */
-    fun getSnackbarAnchor(): View? = if (shouldUseBottomToolbar) view else null
 
     @Suppress("UNUSED_PARAMETER")
     fun update(state: BrowserFragmentState) {

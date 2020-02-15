@@ -9,10 +9,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.RadioButton
 import androidx.coordinatorlayout.widget.CoordinatorLayout
-import androidx.core.content.ContextCompat
 import androidx.transition.TransitionInflater
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.fragment_browser.*
@@ -65,9 +62,6 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
     ): View {
         val view = super.onCreateView(inflater, container, savedInstanceState)
         view.browserLayout.transitionName = "$TAB_ITEM_TRANSITION_NAME${getSessionById()?.id}"
-
-        startPostponedEnterTransition()
-
         return view
     }
 
@@ -99,12 +93,6 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
                 owner = this,
                 view = view
             )
-
-            if ((activity as HomeActivity).browsingModeManager.mode.isPrivate) {
-                // We need to update styles for private mode programmatically for now:
-                // https://github.com/mozilla-mobile/android-components/issues/3400
-                themeReaderViewControlsForPrivateMode(view.readerViewControlsBar)
-            }
 
             consumeFrom(browserFragmentStore) {
                 browserToolbarView.update(it)
@@ -164,9 +152,11 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
             BrowserFragmentDirections.actionBrowserFragmentToQuickSettingsSheetDialogFragment(
                 sessionId = session.id,
                 url = session.url,
+                title = session.title,
                 isSecured = session.securityInfo.secure,
                 sitePermissions = sitePermissions,
-                gravity = getAppropriateLayoutGravity()
+                gravity = getAppropriateLayoutGravity(),
+                certificateName = session.securityInfo.issuer
             )
         nav(R.id.browserFragment, directions)
     }
@@ -189,36 +179,6 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
         }
     }
 
-    private fun themeReaderViewControlsForPrivateMode(view: View) = with(view) {
-        listOf(
-            R.id.mozac_feature_readerview_font_size_decrease,
-            R.id.mozac_feature_readerview_font_size_increase
-        ).map {
-            findViewById<Button>(it)
-        }.forEach {
-            it.setTextColor(
-                ContextCompat.getColorStateList(
-                    context,
-                    R.color.readerview_private_button_color
-                )
-            )
-        }
-
-        listOf(
-            R.id.mozac_feature_readerview_font_serif,
-            R.id.mozac_feature_readerview_font_sans_serif
-        ).map {
-            findViewById<RadioButton>(it)
-        }.forEach {
-            it.setTextColor(
-                ContextCompat.getColorStateList(
-                    context,
-                    R.color.readerview_private_radio_color
-                )
-            )
-        }
-    }
-
     private val collectionStorageObserver = object : TabCollectionStorage.Observer {
         override fun onCollectionCreated(title: String, sessions: List<Session>) {
             showTabSavedToCollectionSnackbar()
@@ -230,9 +190,8 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
 
         private fun showTabSavedToCollectionSnackbar() {
             view?.let { view ->
-                FenixSnackbar.make(view, Snackbar.LENGTH_SHORT)
+                FenixSnackbar.makeWithToolbarPadding(view, Snackbar.LENGTH_SHORT)
                     .setText(view.context.getString(R.string.create_collection_tab_saved))
-                    .setAnchorView(browserToolbarView.getSnackbarAnchor())
                     .show()
             }
         }
@@ -246,10 +205,7 @@ class BrowserFragment : BaseBrowserFragment(), UserInteractionHandler {
         context.components.useCases.tabsUseCases,
         context.components.useCases.contextMenuUseCases,
         view,
-        FenixSnackbarDelegate(
-            view,
-            browserToolbarView.getSnackbarAnchor()
-        )
+        FenixSnackbarDelegate(view)
     )
 
     companion object {

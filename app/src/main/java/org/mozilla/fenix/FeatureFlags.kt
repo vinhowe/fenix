@@ -25,11 +25,6 @@ object FeatureFlags {
     const val mediaIntegration = true
 
     /**
-     * Gives option in Settings to disable auto play media
-     */
-    val autoPlayMedia = Config.channel.isNightlyOrDebug
-
-    /**
      * Allows Progressive Web Apps to be installed to the device home screen.
      */
     val progressiveWebApps = Config.channel.isNightlyOrDebug
@@ -38,4 +33,29 @@ object FeatureFlags {
      * Gives option in Settings to see logins and sync logins
      */
     val logins = Config.channel.isNightlyOrDebug
+
+    /**
+     * Disables FxA Application Services Web Channels feature
+     */
+    const val asFeatureWebChannelsDisabled = false
+
+    /**
+     * Disables FxA Application Services Sync feature
+     */
+    const val asFeatureSyncDisabled = false
+
+    /**
+     * Disables FxA Application Services Pairing feature
+     */
+    const val asFeatureFxAPairingDisabled = false
+
+    /**
+     * Enables the new language picker
+     */
+    val fenixLanguagePicker = Config.channel.isNightlyOrDebug
+
+    /**
+     * Enables deleting individual tracking protection exceptions.
+     */
+    val deleteIndividualTrackingProtectionExceptions = Config.channel.isNightlyOrDebug
 }

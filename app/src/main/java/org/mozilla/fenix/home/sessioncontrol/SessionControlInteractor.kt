@@ -7,6 +7,7 @@ package org.mozilla.fenix.home.sessioncontrol
 import android.view.View
 import mozilla.components.feature.tab.collections.Tab
 import mozilla.components.feature.tab.collections.TabCollection
+import mozilla.components.feature.top.sites.TopSite
 
 /**
  * Interface for collection related actions in the [SessionControlInteractor].
@@ -83,9 +84,14 @@ interface CollectionInteractor {
  */
 interface OnboardingInteractor {
     /**
-     * Hides the onboarding. Called when a user clicks on the "Start Browsing" button.
+     * Hides the onboarding and navigates to Search. Called when a user clicks on the "Start Browsing" button.
      */
     fun onStartBrowsingClicked()
+
+    /**
+     * Hides the onboarding and navigates to Settings. Called when a user clicks on the "Open settings" button.
+     */
+    fun onOpenSettingsClicked()
 }
 
 /**
@@ -150,14 +156,41 @@ interface TabSessionInteractor {
 }
 
 /**
+ * Interface for top site related actions in the [SessionControlInteractor].
+ */
+interface TopSiteInteractor {
+    /**
+     * Opens the given top site in private mode. Called when an user clicks on the "Open in private
+     * tab" top site menu item.
+     *
+     * @param topSite The top site that will be open in private mode.
+     */
+    fun onOpenInPrivateTabClicked(topSite: TopSite)
+
+    /**
+     * Removes the given top site. Called when an user clicks on the "Remove" top site menu item.
+     *
+     * @param topSite The top site that will be removed.
+     */
+    fun onRemoveTopSiteClicked(topSite: TopSite)
+
+    /**
+     * Selects the given top site. Called when a user clicks on a top site.
+     *
+     * @param url The URL of the top site.
+     */
+    fun onSelectTopSite(url: String)
+}
+
+/**
  * Interactor for the Home screen.
- * Provides implementations for the CollectionInteractor, OnboardingInteractor and
- * TabSessionInteractor.
+ * Provides implementations for the CollectionInteractor, OnboardingInteractor,
+ * TabSessionInteractor and TopSiteInteractor.
  */
 @SuppressWarnings("TooManyFunctions")
 class SessionControlInteractor(
     private val controller: SessionControlController
-) : CollectionInteractor, OnboardingInteractor, TabSessionInteractor {
+) : CollectionInteractor, OnboardingInteractor, TabSessionInteractor, TopSiteInteractor {
     override fun onCloseTab(sessionId: String) {
         controller.handleCloseTab(sessionId)
     }
@@ -190,6 +223,10 @@ class SessionControlInteractor(
         controller.handleDeleteCollectionTapped(collection)
     }
 
+    override fun onOpenInPrivateTabClicked(topSite: TopSite) {
+        controller.handleOpenInPrivateTabClicked(topSite)
+    }
+
     override fun onPauseMediaClicked() {
         controller.handlePauseMediaClicked()
     }
@@ -200,6 +237,10 @@ class SessionControlInteractor(
 
     override fun onPrivateBrowsingLearnMoreClicked() {
         controller.handlePrivateBrowsingLearnMoreClicked()
+    }
+
+    override fun onRemoveTopSiteClicked(topSite: TopSite) {
+        controller.handleRemoveTopSiteClicked(topSite)
     }
 
     override fun onRenameCollectionTapped(collection: TabCollection) {
@@ -214,12 +255,20 @@ class SessionControlInteractor(
         controller.handleSelectTab(tabView, sessionId)
     }
 
+    override fun onSelectTopSite(url: String) {
+        controller.handleSelectTopSite(url)
+    }
+
     override fun onShareTabs() {
         controller.handleShareTabs()
     }
 
     override fun onStartBrowsingClicked() {
         controller.handleStartBrowsingClicked()
+    }
+
+    override fun onOpenSettingsClicked() {
+        controller.handleOpenSettingsClicked()
     }
 
     override fun onToggleCollectionExpanded(collection: TabCollection, expand: Boolean) {

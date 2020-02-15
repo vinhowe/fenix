@@ -77,6 +77,8 @@
     <string name="browser_menu_desktop_site">Situs desktop</string>
     <!-- Browser menu toggle that adds a shortcut to the site on the device home screen. -->
     <string name="browser_menu_add_to_homescreen">Tambahkan ke Beranda</string>
+    <!-- Browser menu toggle that installs a Progressive Web App shortcut to the site on the device home screen. -->
+    <string name="browser_menu_install_on_homescreen">Pasang</string>
     <!-- Browser menu button that opens the find in page menu -->
     <string name="browser_menu_find_in_page">Temukan di laman</string>
     <!-- Browser menu button that creates a private tab -->
@@ -109,6 +111,16 @@
     <string name="browser_menu_open_app_link">Buka di Aplikasi</string>
     <!-- Browser menu button to configure reader mode appearance e.g. the used font type and size -->
     <string name="browser_menu_read_appearance">Tampilan</string>
+
+    <!-- Locale Settings Fragment -->
+    <!-- Content description for tick mark on selected language -->
+    <string name="a11y_selected_locale_content_description">Bahasa yang dipilih</string>
+    <!-- Content description for search icon -->
+    <string name="a11y_search_icon_content_description">Pencarian</string>
+    <!-- Text for default locale item -->
+    <string name="default_locale_text">Ikuti bahasa peranti</string>
+    <!-- Placeholder text shown in the search bar before a user enters text -->
+    <string name="locale_search_hint">Bahasa pencarian</string>
 
     <!-- Search Fragment -->
     <!-- Button in the search view that lets a user search by scanning a QR code -->
@@ -226,6 +238,9 @@
     <string name="preferences_search_bookmarks">Cari markah</string>
     <!-- Preference for account settings -->
     <string name="preferences_account_settings">Setelan akun</string>
+
+    <!-- Preference for open links in third party apps -->
+    <string name="preferences_open_links_in_apps">Buka tautan di aplikasi</string>
 
     <!-- Account Preferences -->
     <!-- Preference for triggering sync -->
@@ -1108,7 +1123,7 @@
     <string name="search_engine_delete">Hapus</string>
 
     <!-- Text for the button to create a custom search engine on the Add search engine screen -->
-    <string name="search_add_custom_engine_label">Ubahsuai</string>
+    <string name="search_add_custom_engine_label_other">Lainnya</string>
     <!-- Placeholder text shown in the Search Engine Name TextField before a user enters text -->
     <string name="search_add_custom_engine_name_hint">Nama</string>
     <!-- Placeholder text shown in the Search String TextField before a user enters text -->

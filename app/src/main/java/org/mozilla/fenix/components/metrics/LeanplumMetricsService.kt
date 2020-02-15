@@ -10,8 +10,10 @@ import com.leanplum.Leanplum
 import com.leanplum.LeanplumActivityHelper
 import com.leanplum.annotations.Parser
 import com.leanplum.internal.LeanplumInternal
+import mozilla.components.support.locale.LocaleManager
 import org.mozilla.fenix.BuildConfig
 import org.mozilla.fenix.ext.settings
+import java.util.Locale
 import java.util.UUID.randomUUID
 
 private val Event.name: String?
@@ -28,6 +30,7 @@ private val Event.name: String?
         is Event.SyncAuthSignOut -> "E_Sign_Out_FxA"
         is Event.ClearedPrivateData -> "E_Cleared_Private_Data"
         is Event.DismissedOnboarding -> "E_Dismissed_Onboarding"
+        is Event.FennecToFenixMigrated -> "E_Fennec_To_Fenix_Migrated"
 
         // Do not track other events in Leanplum
         else -> ""
@@ -51,9 +54,22 @@ class LeanplumMetricsService(private val application: Application) : MetricsServ
         }
     }
 
+    override val type = MetricServiceType.Marketing
     private val token = Token(LeanplumId, LeanplumToken)
 
     override fun start() {
+        if (!application.settings().isMarketingTelemetryEnabled) return
+
+        val applicationSetLocale = LocaleManager.getCurrentLocale(application)
+        val currentLocale = when (applicationSetLocale != null) {
+            true -> applicationSetLocale.isO3Language
+            false -> Locale.getDefault().isO3Language
+        }
+        if (!isLeanplumEnabled(currentLocale)) {
+            Log.i(LOGTAG, "Leanplum is not available for this locale: $currentLocale")
+            return
+        }
+
         when (token.type) {
             Token.Type.Production -> Leanplum.setAppIdForProductionMode(token.id, token.token)
             Token.Type.Development -> Leanplum.setAppIdForDevelopmentMode(token.id, token.token)
@@ -79,11 +95,13 @@ class LeanplumMetricsService(private val application: Application) : MetricsServ
             "klar_installed" to installedApps.contains(MozillaProductDetector.MozillaProducts.KLAR.productName),
             "fxa_signed_in" to application.settings().fxaSignedIn,
             "fxa_has_synced_items" to application.settings().fxaHasSyncedItems,
-            "search_widget_installed" to application.settings().searchWidgetInstalled
+            "search_widget_installed" to application.settings().searchWidgetInstalled,
+            "fenix" to true
         ))
     }
 
     override fun stop() {
+        if (application.settings().isMarketingTelemetryEnabled) return
         // As written in LeanPlum SDK documentation, "This prevents Leanplum from communicating with the server."
         // as this "isTestMode" flag is checked before LeanPlum SDK does anything.
         // Also has the benefit effect of blocking the display of already downloaded messages.
@@ -112,6 +130,10 @@ class LeanplumMetricsService(private val application: Application) : MetricsServ
                 token.type != Token.Type.Invalid && !event.name.isNullOrEmpty()
     }
 
+    private fun isLeanplumEnabled(locale: String): Boolean {
+        return LEANPLUM_ENABLED_LOCALES.contains(locale)
+    }
+
     companion object {
         private const val LOGTAG = "LeanplumMetricsService"
 
@@ -121,5 +143,24 @@ class LeanplumMetricsService(private val application: Application) : MetricsServ
         private val LeanplumToken: String
             // Debug builds have a null (nullable) LEANPLUM_TOKEN
             get() = BuildConfig.LEANPLUM_TOKEN.orEmpty()
+        // Leanplum needs to be enabled for the following locales.
+        // Irrespective of the actual device location.
+        private val LEANPLUM_ENABLED_LOCALES = listOf(
+            "eng", // English
+            "zho", // Chinese
+            "deu", // German
+            "fra", // French
+            "ita", // Italian
+            "ind", // Indonesian
+            "por", // Portuguese
+            "spa", // Spanish; Castilian
+            "pol", // Polish
+            "rus", // Russian
+            "hin", // Hindi
+            "per", // Persian
+            "fas", // Persian
+            "ara", // Arabic
+            "jpn" // Japanese
+        )
     }
 }

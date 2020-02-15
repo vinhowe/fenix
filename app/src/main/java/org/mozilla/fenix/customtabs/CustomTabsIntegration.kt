@@ -25,6 +25,7 @@ class CustomTabsIntegration(
     activity: Activity,
     engineLayout: View,
     onItemTapped: (ToolbarMenu.Item) -> Unit = {},
+    shouldReverseItems: Boolean,
     isPrivate: Boolean
 ) : LifecycleAwareFeature, UserInteractionHandler {
 
@@ -71,7 +72,13 @@ class CustomTabsIntegration(
         // See #5334
         if (isPrivate) {
             sessionManager.findSessionById(sessionId)?.apply {
-                customTabConfig = customTabConfig?.copy(toolbarColor = null)
+                val config = customTabConfig
+                customTabConfig = config?.copy(
+                    // Don't set toolbar background automatically
+                    toolbarColor = null,
+                    // Force tinting the action button
+                    actionButtonConfig = config.actionButtonConfig?.copy(tint = true)
+                )
             }
 
             toolbar.background = AppCompatResources.getDrawable(
@@ -86,6 +93,7 @@ class CustomTabsIntegration(
             activity,
             sessionManager,
             sessionId,
+            shouldReverseItems,
             onItemTapped = onItemTapped
         )
     }
@@ -97,22 +105,15 @@ class CustomTabsIntegration(
         menuBuilder = customTabToolbarMenu.menuBuilder,
         menuItemIndex = START_OF_MENU_ITEMS_INDEX,
         window = activity.window,
+        shareListener = { onItemTapped.invoke(ToolbarMenu.Item.Share) },
         closeListener = { activity.finish() }
     )
 
-    override fun start() {
-        feature.start()
-    }
-
-    override fun stop() {
-        feature.stop()
-    }
-
-    override fun onBackPressed(): Boolean {
-        return feature.onBackPressed()
-    }
+    override fun start() = feature.start()
+    override fun stop() = feature.stop()
+    override fun onBackPressed() = feature.onBackPressed()
 
     companion object {
-        const val START_OF_MENU_ITEMS_INDEX = 2
+        private const val START_OF_MENU_ITEMS_INDEX = 2
     }
 }

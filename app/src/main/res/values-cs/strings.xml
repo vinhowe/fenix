@@ -76,6 +76,8 @@
     <string name="browser_menu_desktop_site">Verze pro počítač</string>
     <!-- Browser menu toggle that adds a shortcut to the site on the device home screen. -->
     <string name="browser_menu_add_to_homescreen">Přidat na plochu</string>
+    <!-- Browser menu toggle that installs a Progressive Web App shortcut to the site on the device home screen. -->
+    <string name="browser_menu_install_on_homescreen">Nainstalovat</string>
     <!-- Browser menu button that opens the find in page menu -->
     <string name="browser_menu_find_in_page">Najít na stránce</string>
     <!-- Browser menu button that creates a private tab -->
@@ -108,6 +110,16 @@
     <string name="browser_menu_open_app_link">Otevřít v aplikaci</string>
     <!-- Browser menu button to configure reader mode appearance e.g. the used font type and size -->
     <string name="browser_menu_read_appearance">Vzhled</string>
+
+    <!-- Locale Settings Fragment -->
+    <!-- Content description for tick mark on selected language -->
+    <string name="a11y_selected_locale_content_description">Vybraný jazyk</string>
+    <!-- Content description for search icon -->
+    <string name="a11y_search_icon_content_description">Hledat</string>
+    <!-- Text for default locale item -->
+    <string name="default_locale_text">Podle nastavení zařízení</string>
+    <!-- Placeholder text shown in the search bar before a user enters text -->
+    <string name="locale_search_hint">Hledat</string>
 
     <!-- Search Fragment -->
     <!-- Button in the search view that lets a user search by scanning a QR code -->
@@ -214,7 +226,7 @@
     <!-- Preference title for switch preference to show search suggestions -->
     <string name="preferences_show_search_suggestions">Našeptávat vyhledávání</string>
     <!-- Preference title for switch preference to show search suggestions also in private mode -->
-    <string name="preferences_show_search_suggestions_in_private">Zobrazit v anonymním prohlížení</string>
+    <string name="preferences_show_search_suggestions_in_private">Našeptávat také v anonymním prohlížení</string>
     <!-- Preference title for switch preference to show a clipboard suggestion when searching -->
     <string name="preferences_show_clipboard_suggestions">Našeptávat zkopírovaný text</string>
     <!-- Preference title for switch preference to suggest browsing history when searching -->
@@ -223,6 +235,9 @@
     <string name="preferences_search_bookmarks">Našeptávat ze záložek</string>
     <!-- Preference for account settings -->
     <string name="preferences_account_settings">Nastavení účtu</string>
+
+    <!-- Preference for open links in third party apps -->
+    <string name="preferences_open_links_in_apps">Otevírat odkazy v aplikacích</string>
 
     <!-- Account Preferences -->
     <!-- Preference for triggering sync -->
@@ -234,7 +249,7 @@
     <!-- Preference for syncing bookmarks -->
     <string name="preferences_sync_bookmarks">Záložky</string>
     <!-- Preference for syncing logins -->
-    <string name="preferences_sync_logins">Přihlašovací jména</string>
+    <string name="preferences_sync_logins">Přihlašovací údaje</string>
     <!-- Preference for signing out -->
     <string name="preferences_sign_out">Odhlásit</string>
     <!-- Preference displays and allows changing current FxA device name -->
@@ -1109,7 +1124,7 @@
     <string name="search_engine_delete">Odebrat</string>
 
     <!-- Text for the button to create a custom search engine on the Add search engine screen -->
-    <string name="search_add_custom_engine_label">Vlastní</string>
+    <string name="search_add_custom_engine_label_other">Vlastní</string>
     <!-- Placeholder text shown in the Search Engine Name TextField before a user enters text -->
     <string name="search_add_custom_engine_name_hint">Název</string>
     <!-- Placeholder text shown in the Search String TextField before a user enters text -->

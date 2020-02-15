@@ -6,7 +6,6 @@ package org.mozilla.fenix
 
 import android.content.Context
 import android.net.ConnectivityManager
-import androidx.annotation.RawRes
 import androidx.core.content.getSystemService
 import mozilla.components.browser.errorpages.ErrorPages
 import mozilla.components.browser.errorpages.ErrorType
@@ -14,8 +13,8 @@ import mozilla.components.concept.engine.EngineSession
 import mozilla.components.concept.engine.request.RequestInterceptor
 import org.mozilla.fenix.components.metrics.Event
 import org.mozilla.fenix.ext.components
-import org.mozilla.fenix.ext.settings
 import org.mozilla.fenix.ext.isOnline
+import org.mozilla.fenix.ext.settings
 
 class AppRequestInterceptor(private val context: Context) : RequestInterceptor {
     override fun onLoadRequest(
@@ -28,7 +27,8 @@ class AppRequestInterceptor(private val context: Context) : RequestInterceptor {
         var result: RequestInterceptor.InterceptionResponse? = null
 
         // WebChannel-driven authentication does not require a separate redirect interceptor.
-        if (context.isInExperiment(Experiments.asFeatureWebChannelsDisabled)) {
+        @Suppress("ConstantConditionIf")
+        if (FeatureFlags.asFeatureWebChannelsDisabled) {
             result = context.components.services.accountsAuthFeature.interceptor.onLoadRequest(
                     engineSession, uri, hasUserGesture, isSameDomain)
         }
@@ -59,20 +59,18 @@ class AppRequestInterceptor(private val context: Context) : RequestInterceptor {
         uri: String?
     ): RequestInterceptor.ErrorResponse? {
         val improvedErrorType = improveErrorType(errorType)
-
         val riskLevel = getRiskLevel(improvedErrorType)
 
         context.components.analytics.metrics.track(Event.ErrorPageVisited(improvedErrorType))
 
-        return RequestInterceptor.ErrorResponse(
-            ErrorPages.createErrorPage(
-                context,
-                improvedErrorType,
-                uri = uri,
-                htmlResource = riskLevel.htmlRes,
-                cssResource = riskLevel.cssRes
-            )
+        val errorPageUri = ErrorPages.createUrlEncodedErrorPage(
+            context = context,
+            errorType = improvedErrorType,
+            uri = uri,
+            htmlResource = riskLevel.htmlRes
         )
+
+        return RequestInterceptor.ErrorResponse.Uri(errorPageUri)
     }
 
     /**
@@ -123,9 +121,14 @@ class AppRequestInterceptor(private val context: Context) : RequestInterceptor {
         ErrorType.ERROR_SAFEBROWSING_UNWANTED_URI -> RiskLevel.High
     }
 
-    private enum class RiskLevel(@RawRes val htmlRes: Int, @RawRes val cssRes: Int) {
-        Low(R.raw.low_risk_error_pages, R.raw.low_and_medium_risk_error_style),
-        Medium(R.raw.medium_and_high_risk_error_pages, R.raw.low_and_medium_risk_error_style),
-        High(R.raw.medium_and_high_risk_error_pages, R.raw.high_risk_error_style),
+    internal enum class RiskLevel(val htmlRes: String) {
+        Low(LOW_AND_MEDIUM_RISK_ERROR_PAGES),
+        Medium(LOW_AND_MEDIUM_RISK_ERROR_PAGES),
+        High(HIGH_RISK_ERROR_PAGES),
+    }
+
+    companion object {
+        internal const val LOW_AND_MEDIUM_RISK_ERROR_PAGES = "low_and_medium_risk_error_pages.html"
+        internal const val HIGH_RISK_ERROR_PAGES = "high_risk_error_pages.html"
     }
 }
